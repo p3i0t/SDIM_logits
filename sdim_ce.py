@@ -3,7 +3,7 @@ import torch.nn as nn
 import math
 
 from losses.dim_losses import donsker_varadhan_loss, infonce_loss, fenchel_dual_loss
-# from mi_networks import MI1x1ConvNet
+from mi_networks import MI1x1ConvNet
 from utils import cal_parameters
 
 
@@ -86,8 +86,8 @@ class SDIM(torch.nn.Module):
         self.feature_transformer = MLP(self.n_classes, self.rep_size)
 
         # 1x1 conv performed on only channel dimension
-        self.local_MInet = MLP(self.n_classes, self.mi_units)
-        self.global_MInet = MLP(self.rep_size, self.mi_units)
+        self.local_MInet = MI1x1ConvNet(self.n_classes, self.mi_units)
+        self.global_MInet = MI1x1ConvNet(self.rep_size, self.mi_units)
 
         self.class_conditional = ClassConditionalGaussianMixture(self.n_classes, self.rep_size)
 
@@ -110,10 +110,10 @@ class SDIM(torch.nn.Module):
 
     def _T(self, L, G):
         # All globals are reshaped as 1x1 feature maps.
-        # global_size = G.size()[1:]
-        # if len(global_size) == 1:
-        #     L = L[:, :, None, None]
-        #     G = G[:, :, None, None]
+        global_size = G.size()[1:]
+        if len(global_size) == 1:
+            L = L[:, :, None, None]
+            G = G[:, :, None, None]
 
         L = self.local_MInet(L)
         G = self.global_MInet(G)
