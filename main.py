@@ -258,10 +258,6 @@ if __name__ == '__main__':
     print('==>  # SDIM parameters: {}.'.format(cal_parameters(sdim)))
 
     if hps.inference:
-        print('Inference of Discriminative Classifier')
-        inference(classifier, hps)
-
-        print('Inference of SDIM')
         inference(sdim, hps)
     elif hps.rejection_inference:
         inference_rejection(sdim, hps)

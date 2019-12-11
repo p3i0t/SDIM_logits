@@ -3,7 +3,7 @@ import torch.nn as nn
 import math
 
 from losses.dim_losses import donsker_varadhan_loss, infonce_loss, fenchel_dual_loss
-from mi_networks import MI1x1ConvNet
+# from mi_networks import MI1x1ConvNet
 from utils import cal_parameters
 
 
@@ -56,7 +56,7 @@ def compute_dim_loss(l_enc, m_enc, measure, mode):
     return loss
 
 
-class FeatureTransformer(nn.Module):
+class MLP(nn.Module):
     def __init__(self, in_size, out_size):
         super().__init__()
         self.f = nn.Sequential(nn.Linear(in_size, 2 * out_size),
@@ -83,27 +83,37 @@ class SDIM(torch.nn.Module):
         self.mi_units = mi_units
         self.temperature = temperature
 
-        self.feature_transformer = FeatureTransformer(self.n_classes, self.rep_size)
+        self.feature_transformer = MLP(self.n_classes, self.rep_size)
 
         # 1x1 conv performed on only channel dimension
-        self.local_MInet = MI1x1ConvNet(self.n_classes, self.mi_units)
-        self.global_MInet = MI1x1ConvNet(self.rep_size, self.mi_units)
+        self.local_MInet = MLP(self.n_classes, self.mi_units)
+        self.global_MInet = MLP(self.rep_size, self.mi_units)
 
         self.class_conditional = ClassConditionalGaussianMixture(self.n_classes, self.rep_size)
+
+        n_feat_transformer = cal_parameters(self.feature_transformer)
+        n_local = cal_parameters(self.local_MInet)
+        n_global = cal_parameters(self.global_MInet)
+        n_class_conditional = cal_parameters(self.class_conditional)
+
+        n_additional = n_feat_transformer + n_local + n_global + n_class_conditional
 
         self.cross_entropy = nn.CrossEntropyLoss()
 
         print('==>  # Model parameters.')
-        print('==>  # FeatureTransformer parameters: {}.'.format(cal_parameters(self.feature_transformer)))
-        print('==>  # T parameters: {}.'.format(cal_parameters(self.local_MInet) + cal_parameters(self.global_MInet)))
-        print('==>  # class conditional parameters: {}.'.format(cal_parameters(self.class_conditional)))
+        print('==>  # discriminative classifier parameters: {}.'.format(cal_parameters(self.disc_classifier)))
+        print('==>  # additional parameters: {}.'.format(n_additional))
+
+        print('==>  # FeatureTransformer parameters: {}.'.format(n_feat_transformer))
+        print('==>  # T parameters: {}.'.format(n_local + n_global))
+        print('==>  # class conditional parameters: {}.'.format(n_class_conditional))
 
     def _T(self, L, G):
         # All globals are reshaped as 1x1 feature maps.
-        global_size = G.size()[1:]
-        if len(global_size) == 1:
-            L = L[:, :, None, None]
-            G = G[:, :, None, None]
+        # global_size = G.size()[1:]
+        # if len(global_size) == 1:
+        #     L = L[:, :, None, None]
+        #     G = G[:, :, None, None]
 
         L = self.local_MInet(L)
         G = self.global_MInet(G)
