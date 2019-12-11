@@ -33,9 +33,13 @@ def train(sdim, optimizer, hps):
     dataset = get_dataset(data_name=hps.problem, train=False)
     test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
 
+    results_dict = dict({'train_loss': [], 'train_MI': [], 'train_CE': [],
+                         'test_loss': [], 'test_MI': [], 'test_CE': []})
+
     min_loss = 1e3
     for epoch in range(1, hps.epochs + 1):
         sdim.train()
+
         loss_meter = AverageMeter('loss')
         MI_meter = AverageMeter('MI')
         CE_meter = AverageMeter('CE')
@@ -54,26 +58,48 @@ def train(sdim, optimizer, hps):
             MI_meter.update(mi_loss.item(), x.size(0))
             CE_meter.update(ce_loss.item(), x.size(0))
 
-        print('===> Epoch: {}'.format(epoch + 1))
+        print('===> Epoch: {}'.format(epoch))
         print('loss: {:.4f}, MI: {:.4f}, CE: {:.4f}'.format(loss_meter.avg, MI_meter.avg, CE_meter.avg))
+
+        results_dict['train_loss'].append(loss_meter)
+        results_dict['train_MI'].append(MI_meter)
+        results_dict['train_CE'].append(CE_meter)
+
         if loss_meter.avg < min_loss:
             min_loss = loss_meter.avg
-            name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
-            checkpoint_path = os.path.join(hps.log_dir, name)
-            torch.save(sdim.state_dict(), checkpoint_path)
+            state = sdim.state_dict()
 
-        sdim.eval()
         # Evaluate accuracy on test set.
-        if epoch > 10:
-            acc_meter = AverageMeter('Acc')
-            for batch_id, (x, y) in enumerate(test_loader):
-                x = x.to(hps.device)
-                y = y.to(hps.device)
+        sdim.eval()
+        loss_meter = AverageMeter('loss')
+        MI_meter = AverageMeter('MI')
+        CE_meter = AverageMeter('CE')
 
-                preds = sdim(x).argmax(dim=1)
-                acc = (preds == y).float().mean()
-                acc_meter.update(acc.item(), x.size(0))
-            print('Test accuracy: {:.3f}'.format(acc_meter.avg))
+        acc_meter = AverageMeter('Acc')
+        for batch_id, (x, y) in enumerate(test_loader):
+            x = x.to(hps.device)
+            y = y.to(hps.device)
+
+            preds = sdim(x).argmax(dim=1)
+            acc = (preds == y).float().mean()
+            acc_meter.update(acc.item(), x.size(0))
+
+            loss, mi_loss, ce_loss = sdim.eval_losses(x, y)
+            loss_meter.update(loss.item(), x.size(0))
+            MI_meter.update(mi_loss.item(), x.size(0))
+            CE_meter.update(ce_loss.item(), x.size(0))
+
+        print('Test accuracy: {:.3f}'.format(acc_meter.avg))
+
+        results_dict['test_loss'].append(loss_meter)
+        results_dict['test_MI'].append(MI_meter)
+        results_dict['test_CE'].append(CE_meter)
+
+    name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
+    checkpoint_path = os.path.join(hps.log_dir, name)
+    checkpoint = {'results': results_dict, 'state': state}
+
+    torch.save(checkpoint, checkpoint_path)
 
 
 def inference(sdim, hps):
@@ -174,7 +200,7 @@ def inference_rejection(sdim, hps):
 
     acc_remain = acc / (acc + false_rate)
 
-    print('Test set:\n acc: {:.4f}, false rate: {:.4f}, reject rate: {:.4f}'.format(acc, false_rate, reject_rate))
+    print('Test set:\nacc: {:.4f}, false rate: {:.4f}, reject rate: {:.4f}'.format(acc, false_rate, reject_rate))
     print('acc on remain set: {:.4f}'.format(acc_remain))
     return acc, reject_rate, acc_remain
 
