@@ -118,7 +118,7 @@ def inference(sdim, hps):
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
     checkpoint_path = os.path.join(hps.log_dir, name)
 
-    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
+    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['state'])
 
     global_acc_list = []
     for label_id in range(hps.n_classes):
@@ -146,7 +146,7 @@ def inference_rejection(sdim, hps):
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
     checkpoint_path = os.path.join(hps.log_dir, name)
 
-    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
+    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['state'])
     sdim.eval()
 
     # Get thresholds
