@@ -2,6 +2,8 @@ from __future__ import print_function
 import argparse
 import os
 import sys
+import time
+
 import numpy as np
 
 import torch
@@ -40,10 +42,12 @@ def train(sdim, optimizer, hps):
     for epoch in range(1, hps.epochs + 1):
         sdim.train()
 
+        Timer = AverageMeter('timer')
         loss_meter = AverageMeter('loss')
         MI_meter = AverageMeter('MI')
         CE_meter = AverageMeter('CE')
 
+        end = time.time()
         for batch_id, (x, y) in enumerate(train_loader):
             x = x.to(hps.device)
             y = y.to(hps.device)
@@ -57,6 +61,8 @@ def train(sdim, optimizer, hps):
             loss_meter.update(loss.item(), x.size(0))
             MI_meter.update(mi_loss.item(), x.size(0))
             CE_meter.update(ce_loss.item(), x.size(0))
+
+        Timer.update(time.time() - end)
 
         print('===> Epoch: {}'.format(epoch))
         print('loss: {:.4f}, MI: {:.4f}, CE: {:.4f}'.format(loss_meter.avg, MI_meter.avg, CE_meter.avg))
@@ -100,6 +106,7 @@ def train(sdim, optimizer, hps):
     checkpoint = {'results': results_dict, 'state': state}
 
     torch.save(checkpoint, checkpoint_path)
+    print("Training time, total: {:.3f}s, epoch: {:.3f}s".format(Timer.sum, Timer.avg))
 
 
 def inference(sdim, hps):
@@ -239,7 +246,7 @@ if __name__ == '__main__':
                         default="adam", help="adam or adamax")
     parser.add_argument("--lr", type=float, default=0.001,
                         help="Base learning rate")
-    parser.add_argument("--epochs", type=int, default=100,
+    parser.add_argument("--epochs", type=int, default=20,
                         help="Total number of training epochs")
 
     # Inference hyperparams:
