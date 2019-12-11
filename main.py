@@ -16,9 +16,9 @@ from utils import cal_parameters, get_dataset, AverageMeter
 def load_pretrained_model(hps):
     checkpoint_path = '{}_{}.pth'.format(hps.classifier_name, hps.problem)
     print('Load pre-trained checkpoint: {}'.format(checkpoint_path))
-    pre_trained_dir = os.path.join(hps.pretrained_dir, checkpoint_path)
+    pre_trained_dir = os.path.join(hps.log_dir, checkpoint_path)
 
-    model = models.ResNet34(num_c=hps.num_classes)
+    model = models.ResNet34(num_c=hps.n_classes)
     model.load_state_dict(torch.load(pre_trained_dir, map_location=lambda storage, loc: storage))
     return model
 
