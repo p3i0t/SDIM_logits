@@ -39,10 +39,11 @@ def train(sdim, optimizer, hps):
                          'test_loss': [], 'test_MI': [], 'test_CE': []})
 
     min_loss = 1e3
+    Timer = AverageMeter('timer')
+
     for epoch in range(1, hps.epochs + 1):
         sdim.train()
 
-        Timer = AverageMeter('timer')
         loss_meter = AverageMeter('loss')
         MI_meter = AverageMeter('MI')
         CE_meter = AverageMeter('CE')
@@ -212,6 +213,43 @@ def inference_rejection(sdim, hps):
     return acc, reject_rate, acc_remain
 
 
+def draw(sdim, hps):
+    sdim.eval()
+
+    torch.manual_seed(hps.seed)
+    np.random.seed(hps.seed)
+
+    name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
+    checkpoint_path = os.path.join(hps.log_dir, name)
+
+    results_dict = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['results']
+    import matplotlib.pyplot as plt
+
+    def plot(name):
+        y_train = [ele.avg for ele in results_dict['train_' + name]]
+        y_test = [ele.avg for ele in results_dict['test_' + name]]
+        x = list(range(1, 1 + len(y_train)))
+
+        plt.plot(x, y_train, 'red', label='train_' + name)
+        plt.plot(x, y_test, 'blue', label='test_' + name)
+        x_ = list(filter(lambda e: e % 2 == 0, x))
+        plt.xticks(x_, [str(i) for i in x_])
+
+        plt.title('{}'.format(hps.problem.upper()), fontsize=24)
+        plt.xlabel('Epoch', fontsize=20)
+        name_dict = {'loss': 'Loss', 'MI': 'MI', 'CE': 'Cross Entropy'}
+        plt.ylabel(name_dict[name], fontsize=20)
+
+        plt.legend(fontsize=24)
+        save_path = '{}_{}.png'.format(hps.problem, name)
+        plt.savefig(save_path, dpi=300, pad_inches=0.1, bbox_inches='tight')
+        plt.clf()
+
+    plot('loss')
+    plot('MI')
+    plot('CE')
+
+
 if __name__ == '__main__':
     # This enables a ctr-C without triggering errors
     import signal
@@ -226,6 +264,8 @@ if __name__ == '__main__':
                         help="Used in inference mode with rejection")
     parser.add_argument("--ood_inference", action="store_true",
                         help="Used in ood inference mode")
+    parser.add_argument("--draw", action="store_true",
+                        help="Used in draw")
     parser.add_argument("--log_dir", type=str,
                         default='./logs', help="Location to save logs")
 
@@ -294,5 +334,7 @@ if __name__ == '__main__':
         inference(sdim, hps)
     elif hps.rejection_inference:
         inference_rejection(sdim, hps)
+    elif hps.draw:
+        draw(sdim, hps)
     else:
         train(sdim, optimizer, hps)
