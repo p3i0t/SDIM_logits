@@ -83,7 +83,7 @@ def get_dataset(data_name='mnist', data_dir='data', train=True, label_id=None, c
         else:
             transform = transform_3d
 
-        dataset = datasets.CIFAR10(data_dir, train=train, download=True, transform=transform)
+        dataset = datasets.CIFAR10(data_dir, train=train, download=False, transform=transform)
     elif data_name == 'svhn':
         if train:
             # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
@@ -93,7 +93,7 @@ def get_dataset(data_name='mnist', data_dir='data', train=True, label_id=None, c
             transform = transform_3d
             split = 'test'
 
-        dataset = datasets.SVHN(data_dir, split=split, download=True, transform=transform)
+        dataset = datasets.SVHN(data_dir, split=split, download=False, transform=transform)
     else:
         print('dataset {} is not available'.format(data_name))
 
