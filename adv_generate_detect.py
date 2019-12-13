@@ -27,28 +27,31 @@ def load_pretrained_model(args):
 def generate_score(sdim, args):
     # load dataset
     print('load target data: ', args.problem)
-    test_clean_data = torch.load(args.outf + 'clean_data_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
-    test_adv_data = torch.load(args.outf + 'adv_data_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
-    test_noisy_data = torch.load(args.outf + 'noisy_data_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
-    test_label = torch.load(args.outf + 'label_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
+    outf = args.outf + '{}_{}/'.format(args.classifier_name, args.problem)
+    test_clean_data = torch.load(outf + 'clean_data_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
+    test_adv_data = torch.load(outf + 'adv_data_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
+    test_noisy_data = torch.load(outf + 'noisy_data_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
+    test_label = torch.load(outf + 'label_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
 
     sdim.eval()
 
+    print(test_clean_data.size())
     clean_loader = DataLoader(TensorDataset(test_clean_data), batch_size=args.batch_size)
     adv_loader = DataLoader(TensorDataset(test_adv_data), batch_size=args.batch_size)
 
     adv_score_list, clean_score_list = [], []
     # get clean score
-    for batch_id, x in enumerate(clean_loader):
-        x = x.to(args.device)
+    for idx in range(test_clean_data.size(0) // args.batch_size):
+        #print(len(x), x)
+        x = test_clean_data[idx * args.batch_size: (idx + 1) * args.batch_size].to(args.device)
         logits = sdim(x)  # class conditionals as losits
         clean_score_list.append(logits.cpu())
 
     clean_score = torch.cat(clean_score_list, dim=0)
-    clean_y = torch.ones(clean_score.size(0), 1)
+    clean_y = torch.zeros(clean_score.size(0), 1)
 
-    for batch_id, x in enumerate(adv_loader):
-        x = x.to(args.device)
+    for idx in range(test_adv_data.size(0) // args.batch_size):
+        x = test_adv_data[idx * args.batch_size: (idx + 1) * args.batch_size].to(args.device)
         logits = sdim(x)  # class conditionals as losits
         adv_score_list.append(logits.cpu())
 
@@ -57,8 +60,8 @@ def generate_score(sdim, args):
 
     x = torch.cat([clean_score, adv_score], dim=0)
     y = torch.cat([clean_y, adv_y], dim=0)
-    save_path = os.path.join(args.outf, 'score_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
-
+    save_path = os.path.join(outf, 'score_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
+    print('data size: ', x.size(0))
     torch.save({'x': x, 'y': y}, save_path)
 
 
@@ -83,13 +86,13 @@ def detect(args):
 
         list_best_results_out, list_best_results_index_out = [], []
         for adv in adv_test_list:
-            save_path = os.path.join(args.outf, 'score_%s_%s_%s.pth' % (args.classifier_name, args.problem, adv))
+            save_path = os.path.join(outf, 'score_%s_%s_%s.pth' % (args.classifier_name, args.problem, adv))
             data = torch.load(save_path)
 
             # Split follows https://github.com/wangxin0716/SDIM_logits_private/blob/master/lib_regression.py
             X_val, Y_val, X_test, Y_test = split_set(data['x'], data['y'], ratio=0.1)
             X_train, Y_train, X_val_for_test, Y_val_for_test = split_set(X_val, Y_val, ratio=0.5)
-            lr = LogisticRegressionCV(n_jobs=-1).fit(X_train.numpy(), Y_train.numpy())
+            lr = LogisticRegressionCV(n_jobs=-1).fit(X_train.detach().numpy(), Y_train.detach().numpy())
             # y_pred = lr.predict_proba(X_train)[:, 1]
             #
             # y_pred = lr.predict_proba(X_val_for_test)[:, 1]
