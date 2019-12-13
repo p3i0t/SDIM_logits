@@ -59,8 +59,14 @@ def generate_score(sdim, args):
     adv_y = torch.zeros(adv_score.size(0), 1)
 
     x = torch.cat([clean_score, adv_score], dim=0)
+    # Normalize
+    mean = torch.mean(x, dim=0, keepdim=True)
+    std = torch.std(x, dim=0, keepdim=True)
+    x = (x - mean) / std
+
     y = torch.cat([clean_y, adv_y], dim=0)
     save_path = os.path.join(outf, 'score_%s_%s_%s.pth' % (args.classifier_name, args.problem, args.adv_type))
+
     print('data size: ', x.size(0))
     torch.save({'x': x, 'y': y}, save_path)
 
