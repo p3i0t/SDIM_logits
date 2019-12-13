@@ -56,7 +56,7 @@ def generate_score(sdim, args):
         adv_score_list.append(logits.cpu())
 
     adv_score = torch.cat(adv_score_list, dim=0)
-    adv_y = torch.zeros(adv_score.size(0), 1)
+    adv_y = torch.ones(adv_score.size(0), 1)
 
     x = torch.cat([clean_score, adv_score], dim=0)
     # Normalize
