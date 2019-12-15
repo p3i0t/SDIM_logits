@@ -103,7 +103,7 @@ def inference(sdim, hps):
     interval = 10000
 
     results_dict = dict()
-    for corruption_id, (corruption_type, data, labels) in get_c_dataset():
+    for corruption_id, (corruption_type, data, labels) in enumerate(get_c_dataset()):
         print('Corruption type: {}'.format(corruption_type))
 
         for severity in range(5):
