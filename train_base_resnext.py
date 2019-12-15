@@ -141,7 +141,7 @@ if __name__ == '__main__':
     n_classes = 10
     # Init checkpoints
 
-    args.working_dir = os.path.join(args.save, args.model_name)
+    args.working_dir = os.path.join(args.save, args.dataset)
 
     if not os.path.isdir(args.working_dir):
         os.makedirs(args.working_dir)
