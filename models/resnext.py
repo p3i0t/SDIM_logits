@@ -74,7 +74,7 @@ class ResNeXt(nn.Module):
             base_width: base number of channels in each group.
             widen_factor: factor to adjust the channel dimensionality
         """
-        super(CifarResNeXt, self).__init__()
+        super(ResNeXt, self).__init__()
         self.cardinality = cardinality
         self.depth = depth
         self.block_depth = (self.depth - 2) // 9
