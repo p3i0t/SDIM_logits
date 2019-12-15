@@ -45,10 +45,10 @@ def train(sdim, optimizer, hps):
     torch.manual_seed(hps.seed)
     np.random.seed(hps.seed)
 
-    dataset = get_dataset(data_name=hps.problem, train=True)
+    dataset = get_dataset(data_name=hps.problem, train=True, crop_flip=True)
     train_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_train, shuffle=True)
 
-    dataset = get_dataset(data_name=hps.problem, train=False)
+    dataset = get_dataset(data_name=hps.problem, train=False, crop_flip=False)
     test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
 
     results_dict = dict({'train_loss': [], 'train_MI': [], 'train_CE': [],
