@@ -32,6 +32,7 @@ def get_c_dataset(dir='data/CIFAR-10-C'):
 
     y = np.load(os.path.join(dir, 'labels.npy'))
     for file in files:
+        file = os.path.join(dir, file)
         yield file.split('.')[0], np.load(file), y
 
 
