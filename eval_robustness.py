@@ -119,7 +119,7 @@ def inference(sdim, hps):
 
             for batch_id, (x, target) in enumerate(test_loader):
                 # Note that images are scaled to [-1.0, 1.0]
-                x, target = x.to(hps.device), target.to(hps.device)
+                x, target = x.to(hps.device), target.long().to(hps.device)
 
                 with torch.no_grad():
                     log_lik = sdim(x)
