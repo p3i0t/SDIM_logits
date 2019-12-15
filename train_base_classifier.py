@@ -82,7 +82,10 @@ def train(net, train_loader, test_loader, args):
         if train_loss < best_train_loss:
             best_train_loss = train_loss
 
-            save_name = '{}{}_{}x{}d.pth'.format(name_dict[args.model_name], args.depth, args.cardinality, args.base_width)
+            if args.model_name == 'resnext':
+                save_name = 'ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
+            elif args.model_name == 'resnet':
+                save_name = 'ResNet34.pth'
 
             if use_cuda and args.n_gpu > 1:
                 state = net.module.state_dict()

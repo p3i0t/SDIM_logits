@@ -10,19 +10,35 @@ import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-import models
+from models import ResNet34, ResNeXt
 from sdim_ce import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
 
 
-def load_pretrained_model(hps):
-    checkpoint_path = '{}_{}.pth'.format(hps.classifier_name, hps.problem)
-    print('Load pre-trained checkpoint: {}'.format(checkpoint_path))
-    pre_trained_dir = os.path.join(hps.log_dir, checkpoint_path)
+name_dict = {'resnet': 'ResNet', 'resnext': 'ResNeXt'}
 
-    model = models.ResNet34(num_c=hps.n_classes)
-    model.load_state_dict(torch.load(pre_trained_dir, map_location=lambda storage, loc: storage))
-    return model
+
+def load_pretrained_model(hps):
+    # Init model, criterion, and optimizer
+    if hps.classifier_name == 'resnext':
+        classifier = ResNeXt(hps.cardinality, hps.depth, hps.n_classes, hps.base_width, hps.widen_factor).to(hps.device)
+    elif hps.classifier_name == 'resnet':
+        classifier = ResNet34(n_classes=hps.n_classes).to(hps.device)
+    else:
+        print('Classifier {} not available.'.format(hps.classifier_name))
+
+    print('# Classifier parameters: ', cal_parameters(classifier))
+
+    if hps.classifier_name == 'resnext':
+        save_name = 'ResNeXt{}_{}x{}d.pth'.format(hps.depth, hps.cardinality, hps.base_width)
+    elif hps.classifier_name == 'resnet':
+        save_name = 'ResNet34.pth'
+
+    checkpoint = torch.load(os.path.join(hps.working_dir, save_name), map_location=lambda storage, loc: storage)
+    print('Load pre-trained checkpoint: {}'.format(save_name))
+
+    classifier.load_state_dict(checkpoint['model_state'])
+    return classifier
 
 
 def train(sdim, optimizer, hps):
@@ -104,7 +120,7 @@ def train(sdim, optimizer, hps):
 
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
     checkpoint_path = os.path.join(hps.log_dir, name)
-    checkpoint = {'results': results_dict, 'state': state}
+    checkpoint = {'results': results_dict, 'model_state': state}
 
     torch.save(checkpoint, checkpoint_path)
     print("Training time, total: {:.3f}s, epoch: {:.3f}s".format(Timer.sum, Timer.avg))
@@ -119,7 +135,7 @@ def inference(sdim, hps):
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
     checkpoint_path = os.path.join(hps.log_dir, name)
 
-    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['state'])
+    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['model_state'])
 
     global_acc_list = []
     for label_id in range(hps.n_classes):
@@ -147,7 +163,7 @@ def inference_rejection(sdim, hps):
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
     checkpoint_path = os.path.join(hps.log_dir, name)
 
-    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['state'])
+    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['model_state'])
     sdim.eval()
 
     # Get thresholds
@@ -225,14 +241,12 @@ if __name__ == '__main__':
                         help="Used in inference mode")
     parser.add_argument("--rejection_inference", action="store_true",
                         help="Used in inference mode with rejection")
-    parser.add_argument("--ood_inference", action="store_true",
-                        help="Used in ood inference mode")
     parser.add_argument("--log_dir", type=str,
                         default='./logs', help="Location to save logs")
 
     # Dataset hyperparams:
     parser.add_argument("--problem", type=str, default='cifar10',
-                        help="Problem cifar10|svhn")
+                        help="Problem cifar10 | svhn")
     parser.add_argument("--n_classes", type=int,
                         default=10, help="number of classes of dataset.")
     parser.add_argument("--data_dir", type=str, default='data',
@@ -254,6 +268,12 @@ if __name__ == '__main__':
     parser.add_argument("--percentile", type=float, default=0.01,
                         help="percentile value for inference with rejection.")
 
+    # ResNeXt hyperparameters
+    parser.add_argument('--depth', type=int, default=29, help='Model depth.')
+    parser.add_argument('--cardinality', type=int, default=8, help='Model cardinality (group).')
+    parser.add_argument('--base_width', type=int, default=64, help='Number of channels in each group.')
+    parser.add_argument('--widen_factor', type=int, default=4, help='Widen factor. 4 -> 64, 8 -> 128, ...')
+
     # sdim hyperparams:
     parser.add_argument("--image_size", type=int,
                         default=32, help="Image size")
@@ -262,7 +282,8 @@ if __name__ == '__main__':
     parser.add_argument("--rep_size", type=int,
                         default=10, help="size of the global representation from encoder")
     parser.add_argument("--classifier_name", type=str, default='resnet',
-                        help="classifier name: resnet|densenet")
+                        help="classifier name: resnet | resnext")
+
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
 
@@ -273,15 +294,15 @@ if __name__ == '__main__':
     use_cuda = not hps.no_cuda and torch.cuda.is_available()
 
     torch.manual_seed(hps.seed)
-
     hps.device = torch.device("cuda" if use_cuda else "cpu")
 
     # Create log dir
-    logdir = os.path.abspath(hps.log_dir) + "/"
-    if not os.path.exists(logdir):
-        os.mkdir(logdir)
+    hps.working_dir = os.path.join(hps.log_dir, hps.problem)
+    if not os.path.exists(hps.working_dir):
+        os.mkdir(hps.working_dir)
 
     classifier = load_pretrained_model(hps).to(hps.device)
+
     sdim = SDIM(disc_classifier=classifier,
                 n_classes=hps.n_classes,
                 rep_size=hps.rep_size,
