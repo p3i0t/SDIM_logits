@@ -22,7 +22,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def get_dataset(data_name='mnist', data_dir='data', train=True, label_id=None, crop_flip=True):
+def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None, crop_flip=True):
     """
     Get a dataset.
     :param data_name: str, name of dataset.
@@ -32,19 +32,20 @@ def get_dataset(data_name='mnist', data_dir='data', train=True, label_id=None, c
     :param crop_flip: bool, whether use crop_flip as data augmentation.
     :return: pytorch dataset.
     """
-    transform_3d_crop_flip = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-
-    transform_3d = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
 
     if data_name == 'cifar10':
+        transform_3d_crop_flip = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
+        ])
+
+        transform_3d = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
+        ])
+
         if train:
             # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
             transform = transform_3d if crop_flip is False else transform_3d_crop_flip
@@ -53,6 +54,19 @@ def get_dataset(data_name='mnist', data_dir='data', train=True, label_id=None, c
 
         dataset = datasets.CIFAR10(data_dir, train=train, download=False, transform=transform)
     elif data_name == 'svhn':
+
+        transform_3d_crop_flip = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+        transform_3d = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
         if train:
             # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
             transform = transform_3d if crop_flip is False else transform_3d_crop_flip
