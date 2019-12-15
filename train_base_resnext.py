@@ -170,7 +170,8 @@ if __name__ == '__main__':
     if args.inference:
         save_name = '{}{}_{}x{}d.pth'.format(name_dict[args.model_name], args.depth, args.cardinality, args.base_width)
         net.load_state_dict(torch.load(os.path.join(args.working_dir, save_name))['model_state'])
-        inference(net, test_loader, args)
+        acc = inference(net, test_loader, args)
+        print('Test acc: {:.4f}'.format(acc))
     else:
         train(net, train_loader, test_loader, args)
 
