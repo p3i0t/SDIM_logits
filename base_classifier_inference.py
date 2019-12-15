@@ -112,3 +112,5 @@ if __name__ == '__main__':
         os.mkdir(logdir)
 
     classifier = load_pretrained_model(hps).to(hps.device)
+
+    inference(classifier, hps)
