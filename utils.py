@@ -32,51 +32,19 @@ def get_dataset(data_name='mnist', data_dir='data', train=True, label_id=None, c
     :param crop_flip: bool, whether use crop_flip as data augmentation.
     :return: pytorch dataset.
     """
-    transform_1d_crop_flip = transforms.Compose([
-                                            transforms.Resize((32, 32)),
-                                            transforms.RandomCrop(32, padding=4),
-                                            transforms.RandomHorizontalFlip(),
-                                            transforms.ToTensor(),
-                                            # transforms.Normalize((0.5,), (0.5,))  # 1-channel, scale to [-1, 1]
-                                        ])
-
-    transform_1d = transforms.Compose([
-                transforms.Resize((32, 32)),
-                transforms.ToTensor(),
-                #transforms.Normalize((0.5,), (0.5, ))
-            ])
-
     transform_3d_crop_flip = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
     transform_3d = transforms.Compose([
         transforms.ToTensor(),
-        #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    if data_name == 'mnist':
-        #if train:
-            # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
-        #    transform = transform_1d if crop_flip is False else transform_1d_crop_flip
-        #else:
-        #    transform = transform_1d
-
-        dataset = datasets.MNIST(data_dir, train=train, download=True, transform=transform_1d)
-
-    elif data_name == 'fashion':
-        if train:
-            # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
-            transform = transform_1d if crop_flip is False else transform_1d_crop_flip
-        else:
-            transform = transform_1d
-
-        dataset = datasets.FashionMNIST(data_dir, train=train, download=True, transform=transform)
-
-    elif data_name == 'cifar10':
+    if data_name == 'cifar10':
         if train:
             # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
             transform = transform_3d if crop_flip is False else transform_3d_crop_flip
@@ -99,7 +67,7 @@ def get_dataset(data_name='mnist', data_dir='data', train=True, label_id=None, c
 
     if label_id is not None:
         # select samples with particular label
-        if data_name == 'cifar10': #isinstance(dataset.targets, list):
+        if data_name == 'cifar10':  #isinstance(dataset.targets, list):
             # for cifar10
             targets = np.array(dataset.targets)
             idx = targets == label_id
@@ -129,18 +97,6 @@ def cal_parameters(model):
     for para in model.parameters():
         cnt += para.numel()
     return cnt
-
-#
-# def clean_state_dict(state_dict):
-#     # see https://discuss.pytorch.org/t/solved-keyerror-unexpected-key-module-encoder-embedding-weight-in-state-dict/1686/3
-#     from collections import OrderedDict
-#     new_state_dict = OrderedDict()
-#     for k, v in state_dict.items():
-#         assert k.startswith('module.')
-#         name = k[7:]  # remove `module.`
-#         new_state_dict[name] = v
-#     # load params
-#     return new_state_dict
 
 
 if __name__ == '__main__':

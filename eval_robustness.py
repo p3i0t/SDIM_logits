@@ -57,7 +57,7 @@ class CorruptionDataset(Dataset):
         return self.x.shape[0]
 
 
-def inference_rejection(sdim, hps):
+def inference(sdim, hps):
     torch.manual_seed(hps.seed)
     np.random.seed(hps.seed)
 
@@ -94,9 +94,14 @@ def inference_rejection(sdim, hps):
     # Evaluation
     thresholds = torch.tensor(threshold_list).to(hps.device)
 
+    if hps.rejection:
+        thresholds = thresholds - 1e5   # set thresholds to be very low
+
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
     interval = 10000
+
+    results_dict = dict()
     for corruption_id, (corruption_type, data, labels) in get_c_dataset():
         print('Corruption type: {}'.format(corruption_type))
 
@@ -133,12 +138,14 @@ def inference_rejection(sdim, hps):
 
             acc_remain = acc / (acc + false_rate)
 
-            print('Test set:\nacc: {:.4f}, false rate: {:.4f}, reject rate: {:.4f}'.format(acc, false_rate, reject_rate))
+            key = '{}_{}'.format(corruption_type, severity + 1)
+            results_dict[key] = {'acc_remain': acc_remain, 'rejection_rate': reject_rate}
+
+            print('Test acc: {:.4f}, false rate: {:.4f}, reject rate: {:.4f}'.format(acc, false_rate, reject_rate))
             print('acc on remain set: {:.4f}'.format(acc_remain))
 
-        exit(0)
-    return acc, reject_rate, acc_remain
-
+    save_path = os.path.join(hps.log_dir, '{}_cifar10-c_results.pth'.format(hps.classifier_name))
+    torch.save(results_dict, save_path)
 
 
 if __name__ == '__main__':
@@ -149,20 +156,14 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='PyTorch Implementation of SDIM_logits.')
     parser.add_argument("--verbose", action='store_true', help="Verbose mode")
-    parser.add_argument("--inference", action="store_true",
-                        help="Used in inference mode")
-    parser.add_argument("--rejection_inference", action="store_true",
+    parser.add_argument("--rejection", action="store_true",
                         help="Used in inference mode with rejection")
-    parser.add_argument("--ood_inference", action="store_true",
-                        help="Used in ood inference mode")
-    parser.add_argument("--draw", action="store_true",
-                        help="Used in draw")
     parser.add_argument("--log_dir", type=str,
                         default='./logs', help="Location to save logs")
 
     # Dataset hyperparams:
     parser.add_argument("--problem", type=str, default='cifar10',
-                        help="Problem cifar10|svhn")
+                        help="Problem cifar10 | svhn")
     parser.add_argument("--n_classes", type=int,
                         default=10, help="number of classes of dataset.")
     parser.add_argument("--data_dir", type=str, default='data',
@@ -221,5 +222,5 @@ if __name__ == '__main__':
 
     print('==>  # SDIM parameters: {}.'.format(cal_parameters(sdim)))
 
-    inference_rejection(sdim, hps)
+    inference(sdim, hps)
 
