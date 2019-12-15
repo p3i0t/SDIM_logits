@@ -28,7 +28,8 @@ def inference(net, data_loader, args):
     for batch_idx, (x, y) in enumerate(data_loader):
         x, y = x.to(args.device), y.to(args.device)
         # forward
-        output = net(x)
+        with torch.no_grad():
+            output = net(x)
 
         # accuracy
         pred = output.max(1)[1]
