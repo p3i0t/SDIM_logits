@@ -73,7 +73,7 @@ class MLP(nn.Module):
 
 
 class SDIM(torch.nn.Module):
-    def __init__(self, disc_classifier, rep_size=64, n_classes=10, mi_units=64, temperature=10):
+    def __init__(self, disc_classifier, rep_size=64, n_classes=10, mi_units=64, margin=10):
         super().__init__()
         self.disc_classifier = disc_classifier #.half()  # Use half-precision for saving memory and time.
         self.disc_classifier.requires_grad_(requires_grad=False)  # shut down grad on pre-trained classifier.
@@ -82,7 +82,7 @@ class SDIM(torch.nn.Module):
         self.rep_size = rep_size
         self.n_classes = n_classes
         self.mi_units = mi_units
-        self.temperature = temperature
+        self.margin = margin
 
         self.feature_transformer = MLP(self.n_classes, self.rep_size)
 
@@ -152,7 +152,7 @@ class SDIM(torch.nn.Module):
         ll_margin = F.relu(self.margin - gap_ll).mean()
 
         # total loss
-        loss = mi_loss + 0.1 *nll_loss + 0.1 * ll_margin
+        loss = mi_loss + nll_loss + ll_margin
         return loss, mi_loss, nll_loss, ll_margin
 
     def forward(self, x):
