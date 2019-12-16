@@ -158,7 +158,7 @@ def inference(sdim, hps):
             print('Test acc: {:.4f}, false rate: {:.4f}, reject rate: {:.4f}'.format(acc, false_rate, reject_rate))
             print('acc on remain set: {:.4f}'.format(acc_remain))
 
-    save_path = os.path.join(hps.log_dir, '{}_cifar10-c_results.pth'.format(hps.classifier_name))
+    save_path = os.path.join(hps.log_dir, '{}_cifar10-c_per{}_results.pth'.format(hps.classifier_name, int(100*hps.percentile)))
     torch.save(results_dict, save_path)
 
 
