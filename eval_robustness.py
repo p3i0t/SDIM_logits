@@ -11,19 +11,32 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
 
-import models
+from models import ResNeXt, ResNet34
 from sdim_ce import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
 
 
 def load_pretrained_model(hps):
-    checkpoint_path = '{}_{}.pth'.format(hps.classifier_name, hps.problem)
-    print('Load pre-trained checkpoint: {}'.format(checkpoint_path))
-    pre_trained_dir = os.path.join(hps.log_dir, checkpoint_path)
+    # Init model, criterion, and optimizer
+    if hps.classifier_name == 'resnext':
+        classifier = ResNeXt(hps.cardinality, hps.depth, hps.n_classes, hps.base_width, hps.widen_factor).to(hps.device)
+    elif hps.classifier_name == 'resnet':
+        classifier = ResNet34(n_classes=hps.n_classes).to(hps.device)
+    else:
+        print('Classifier {} not available.'.format(hps.classifier_name))
 
-    model = models.ResNet34(num_c=hps.n_classes)
-    model.load_state_dict(torch.load(pre_trained_dir, map_location=lambda storage, loc: storage))
-    return model
+    print('# Classifier parameters: ', cal_parameters(classifier))
+
+    # if hps.classifier_name == 'resnext':
+    #     save_name = 'ResNeXt{}_{}x{}d.pth'.format(hps.depth, hps.cardinality, hps.base_width)
+    # elif hps.classifier_name == 'resnet':
+    #     save_name = 'ResNet34.pth'
+    #
+    # checkpoint = torch.load(os.path.join(hps.working_dir, save_name), map_location=lambda storage, loc: storage)
+    # print('Load pre-trained checkpoint: {}'.format(save_name))
+    #
+    # classifier.load_state_dict(checkpoint['model_state'])
+    return classifier
 
 
 def get_c_dataset(dir='data/CIFAR-10-C'):
@@ -65,7 +78,7 @@ def inference(sdim, hps):
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
     checkpoint_path = os.path.join(hps.log_dir, name)
 
-    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['state'])
+    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['model_state'])
     sdim.eval()
 
     # Get thresholds
@@ -95,7 +108,7 @@ def inference(sdim, hps):
     # Evaluation
     thresholds = torch.tensor(threshold_list).to(hps.device)
 
-    if hps.rejection:
+    if hps.no_rejection:
         thresholds = thresholds - 1e5   # set thresholds to be very low
 
     transform = transforms.Compose([transforms.ToTensor(),
@@ -104,7 +117,7 @@ def inference(sdim, hps):
 
     results_dict = dict()
     for corruption_id, (corruption_type, data, labels) in enumerate(get_c_dataset()):
-        print('Corruption type: {}'.format(corruption_type))
+        print('==> Corruption type: {}'.format(corruption_type))
 
         for severity in range(5):
             x_severity = data[severity * interval: (severity + 1) * interval]
@@ -157,7 +170,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='PyTorch Implementation of SDIM_logits.')
     parser.add_argument("--verbose", action='store_true', help="Verbose mode")
-    parser.add_argument("--rejection", action="store_true",
+    parser.add_argument("--no_rejection", action="store_true",
                         help="Used in inference mode with rejection")
     parser.add_argument("--log_dir", type=str,
                         default='./logs', help="Location to save logs")
