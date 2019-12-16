@@ -11,7 +11,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from models import ResNet34, ResNeXt
-from sdim import SDIM
+from sdim_ce import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
 
 
@@ -62,8 +62,7 @@ def train(sdim, optimizer, hps):
 
         loss_meter = AverageMeter('loss')
         MI_meter = AverageMeter('MI')
-        nll_meter = AverageMeter('NLL')
-        margin_meter = AverageMeter('margin')
+        CE_meter = AverageMeter('CE')
 
         end = time.time()
         for batch_id, (x, y) in enumerate(train_loader):
@@ -72,25 +71,22 @@ def train(sdim, optimizer, hps):
 
             optimizer.zero_grad()
 
-            loss, mi_loss, nll_loss, ll_margin = sdim.eval_losses(x, y)
+            loss, mi_loss, ce_loss = sdim.eval_losses(x, y)
             loss.backward()
             optimizer.step()
 
             loss_meter.update(loss.item(), x.size(0))
             MI_meter.update(mi_loss.item(), x.size(0))
-            nll_meter.update(nll_loss.item(), x.size(0))
-            margin_meter.update(ll_margin.item(), x.size(0))
+            CE_meter.update(ce_loss.item(), x.size(0))
 
         Timer.update(time.time() - end)
 
         print('===> Epoch: {}'.format(epoch))
-        print('loss:{:.4f}, MI:{:.4f}, NLL:{:.4f}, margin:{:.4f}'.format(
-            loss_meter.avg, MI_meter.avg, nll_meter.avg, margin_meter.avg))
+        print('loss: {:.4f}, MI: {:.4f}, CE: {:.4f}'.format(loss_meter.avg, MI_meter.avg, CE_meter.avg))
 
         results_dict['train_loss'].append(loss_meter)
         results_dict['train_MI'].append(MI_meter)
-        results_dict['train_nll'].append(nll_meter)
-        results_dict['train_margin'].append(margin_meter)
+        results_dict['train_CE'].append(CE_meter)
 
         if loss_meter.avg < min_loss:
             min_loss = loss_meter.avg
@@ -100,8 +96,7 @@ def train(sdim, optimizer, hps):
         sdim.eval()
         loss_meter = AverageMeter('loss')
         MI_meter = AverageMeter('MI')
-        nll_meter = AverageMeter('NLL')
-        margin_meter = AverageMeter('margin')
+        CE_meter = AverageMeter('CE')
 
         acc_meter = AverageMeter('Acc')
         for batch_id, (x, y) in enumerate(test_loader):
@@ -112,19 +107,16 @@ def train(sdim, optimizer, hps):
             acc = (preds == y).float().mean()
             acc_meter.update(acc.item(), x.size(0))
 
-            loss, mi_loss, nll_loss, ll_margin = sdim.eval_losses(x, y)
-
+            loss, mi_loss, ce_loss = sdim.eval_losses(x, y)
             loss_meter.update(loss.item(), x.size(0))
             MI_meter.update(mi_loss.item(), x.size(0))
-            nll_meter.update(nll_loss.item(), x.size(0))
-            margin_meter.update(ll_margin.item(), x.size(0))
+            CE_meter.update(ce_loss.item(), x.size(0))
 
         print('Test accuracy: {:.3f}'.format(acc_meter.avg))
 
         results_dict['test_loss'].append(loss_meter)
         results_dict['test_MI'].append(MI_meter)
-        results_dict['train_nll'].append(nll_meter)
-        results_dict['train_margin'].append(margin_meter)
+        results_dict['test_CE'].append(CE_meter)
 
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
     checkpoint_path = os.path.join(hps.log_dir, name)
@@ -164,6 +156,79 @@ def inference(sdim, hps):
     print('Test accracy: {:.4f}'.format(np.mean(global_acc_list)))
 
 
+def inference_rejection(sdim, hps):
+    torch.manual_seed(hps.seed)
+    np.random.seed(hps.seed)
+
+    name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
+    checkpoint_path = os.path.join(hps.log_dir, name)
+
+    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['model_state'])
+    sdim.eval()
+
+    # Get thresholds
+    threshold_list = []
+    for label_id in range(hps.n_classes):
+        # No data augmentation(crop_flip=False) when getting in-distribution thresholds
+        dataset = get_dataset(data_name=hps.problem, train=True, label_id=label_id, crop_flip=False)
+        in_test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
+
+        print('Inference on {}, label_id {}'.format(hps.problem, label_id))
+        in_ll_list = []
+        for batch_id, (x, y) in enumerate(in_test_loader):
+            x = x.to(hps.device)
+            y = y.to(hps.device)
+            ll = sdim(x)
+
+            correct_idx = ll.argmax(dim=1) == y
+
+            ll_, y_ = ll[correct_idx], y[correct_idx]  # choose samples are classified correctly
+            in_ll_list += list(ll_[:, label_id].detach().cpu().numpy())
+
+        thresh_idx = int(hps.percentile * len(in_ll_list))
+        thresh = sorted(in_ll_list)[thresh_idx]
+        print('threshold_idx/total_size: {}/{}, threshold: {:.3f}'.format(thresh_idx, len(in_ll_list), thresh))
+        threshold_list.append(thresh)  # class mean as threshold
+
+    # Evaluation
+    dataset = get_dataset(data_name=hps.problem, train=False)
+    test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
+
+    n_correct = 0
+    n_false = 0
+    n_reject = 0
+
+    thresholds = torch.tensor(threshold_list).to(hps.device)
+    result_str = ' & '.join('{:.1f}'.format(ll) for ll in threshold_list)
+    print('thresholds: ', result_str)
+
+    for batch_id, (x, target) in enumerate(test_loader):
+        # Note that images are scaled to [-1.0, 1.0]
+        x, target = x.to(hps.device), target.to(hps.device)
+
+        with torch.no_grad():
+            log_lik = sdim(x)
+
+        values, pred = log_lik.max(dim=1)
+        confidence_idx = values >= thresholds[pred]  # the predictions you have confidence in.
+        reject_idx = values < thresholds[pred]       # the ones rejected.
+
+        n_correct += pred[confidence_idx].eq(target[confidence_idx]).sum().item()
+        n_false += (pred[confidence_idx] != target[confidence_idx]).sum().item()
+        n_reject += reject_idx.float().sum().item()
+
+    n = len(test_loader.dataset)
+    acc = n_correct / n
+    false_rate = n_false / n
+    reject_rate = n_reject / n
+
+    acc_remain = acc / (acc + false_rate)
+
+    print('Test set:\nacc: {:.4f}, false rate: {:.4f}, reject rate: {:.4f}'.format(acc, false_rate, reject_rate))
+    print('acc on remain set: {:.4f}'.format(acc_remain))
+    return acc, reject_rate, acc_remain
+
+
 if __name__ == '__main__':
     # This enables a ctr-C without triggering errors
     import signal
@@ -198,6 +263,10 @@ if __name__ == '__main__':
                         help="Base learning rate")
     parser.add_argument("--epochs", type=int, default=20,
                         help="Total number of training epochs")
+
+    # Inference hyperparams:
+    parser.add_argument("--percentile", type=float, default=0.01,
+                        help="percentile value for inference with rejection.")
 
     # ResNeXt hyperparameters
     parser.add_argument('--depth', type=int, default=29, help='Model depth.')
@@ -245,5 +314,7 @@ if __name__ == '__main__':
 
     if hps.inference:
         inference(sdim, hps)
+    elif hps.rejection_inference:
+        inference_rejection(sdim, hps)
     else:
         train(sdim, optimizer, hps)
