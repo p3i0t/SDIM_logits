@@ -123,7 +123,7 @@ def train(sdim, optimizer, hps):
 
         results_dict['test_loss'].append(loss_meter)
         results_dict['test_MI'].append(MI_meter)
-        results_dict['trest_nll'].append(nll_meter)
+        results_dict['test_nll'].append(nll_meter)
         results_dict['test_margin'].append(margin_meter)
 
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
