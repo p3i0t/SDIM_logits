@@ -51,8 +51,8 @@ def train(sdim, optimizer, hps):
     dataset = get_dataset(data_name=hps.problem, train=False, crop_flip=False)
     test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
 
-    results_dict = dict({'train_loss': [], 'train_MI': [], 'train_CE': [],
-                         'test_loss': [], 'test_MI': [], 'test_CE': []})
+    results_dict = dict({'train_loss': [], 'train_MI': [], 'train_nll': [], 'train_margin': [],
+                         'test_loss': [], 'test_MI': [], 'test_nll': [], 'test_margin': []})
 
     min_loss = 1e3
     Timer = AverageMeter('timer')
@@ -123,8 +123,8 @@ def train(sdim, optimizer, hps):
 
         results_dict['test_loss'].append(loss_meter)
         results_dict['test_MI'].append(MI_meter)
-        results_dict['train_nll'].append(nll_meter)
-        results_dict['train_margin'].append(margin_meter)
+        results_dict['trest_nll'].append(nll_meter)
+        results_dict['test_margin'].append(margin_meter)
 
     name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
     checkpoint_path = os.path.join(hps.log_dir, name)
