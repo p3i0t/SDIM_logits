@@ -109,6 +109,7 @@ def inference(sdim, hps):
     thresholds = torch.tensor(threshold_list).to(hps.device)
 
     if hps.no_rejection:
+        hps.percentile=0.0
         thresholds = thresholds - 1e5   # set thresholds to be very low
 
     transform = transforms.Compose([transforms.ToTensor(),
