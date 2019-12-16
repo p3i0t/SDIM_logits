@@ -254,7 +254,7 @@ if __name__ == '__main__':
 
     # Optimization hyperparams:
     parser.add_argument("--n_batch_train", type=int,
-                        default=128, help="Minibatch size")
+                        default=64, help="Minibatch size")
     parser.add_argument("--n_batch_test", type=int,
                         default=200, help="Minibatch size")
     parser.add_argument("--optimizer", type=str,

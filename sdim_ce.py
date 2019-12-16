@@ -59,13 +59,13 @@ def compute_dim_loss(l_enc, m_enc, measure, mode):
 class MLP(nn.Module):
     def __init__(self, in_size, out_size):
         super().__init__()
-        self.f = nn.Sequential(nn.Linear(in_size, 2 * out_size),
-                               nn.BatchNorm1d(2 * out_size),
+        self.f = nn.Sequential(nn.Linear(in_size, 256),
+                               nn.BatchNorm1d(256),
                                nn.ReLU(),
                                # nn.Linear(2 * in_size, 2 * in_size),
                                # nn.BatchNorm1d(2 * in_size),
                                # nn.ReLU(),
-                               nn.Linear(2 * out_size, out_size))
+                               nn.Linear(256, out_size))
 
     def forward(self, x):
         return self.f(x)
