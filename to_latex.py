@@ -6,11 +6,13 @@ import numpy as np
 
 dir='data/CIFAR-10-C'
 
-classifier_name = 'resnet'
+classifier_name = 'resnext'
 log_dir = 'logs'
-percentile = 0.01
+percentile = 0.02
 save_path = os.path.join(log_dir, '{}_cifar10-c_per{}_results.pth'.format(classifier_name, int(100 * percentile)))
 results_dict = torch.load(save_path)
+results_dict = dict((k.split('/')[-1],v) for k, v in results_dict.items())
+print(results_dict.keys())
 
 corruption_types = [file.split('.')[0] for file in listdir(dir) if file != 'labels.npy']
 print('classifier: {}, percentile: {}'.format(classifier_name, percentile))
