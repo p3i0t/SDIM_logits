@@ -159,6 +159,9 @@ if __name__ == '__main__':
     parser.add_argument("--log_dir", type=str,
                         default='./logs', help="Location to save logs")
 
+    parser.add_argument("--attack_dir", type=str,
+                        default='./attack_logs', help="Location to save logs")
+
     # Dataset hyperparams:
     parser.add_argument("--problem", type=str, default='cifar10',
                         help="Problem cifar10 | svhn")
@@ -198,6 +201,8 @@ if __name__ == '__main__':
                         default=10, help="size of the global representation from encoder")
     parser.add_argument("--classifier_name", type=str, default='resnet',
                         help="classifier name: resnet|densenet")
+    parser.add_argument("--attack", type=str, default='cw',
+                        help="Location of data")
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
 
@@ -212,9 +217,11 @@ if __name__ == '__main__':
     hps.device = torch.device("cuda" if use_cuda else "cpu")
 
     # Create log dir
-    logdir = os.path.abspath(hps.log_dir) + "/"
-    if not os.path.exists(logdir):
-        os.mkdir(logdir)
+    if not os.path.exists(hps.log_dir):
+        os.mkdir(hps.log_dir)
+
+    if not os.path.exists(hps.attack_dir):
+        os.mkdir(hps.attack_dir)
 
     sdim = load_pretrained_sdim(hps).to(hps.device)
 
