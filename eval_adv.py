@@ -10,8 +10,7 @@ import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 
-from art.attacks import DeepFool, CarliniL2Method
-from art.classifiers import PyTorchClassifier
+import foolbox
 
 
 from models import ResNeXt, ResNet34
@@ -94,15 +93,10 @@ def attack_run_rejection_policy(model, hps):
     thresholds1 = torch.tensor(threshold_list1).to(hps.device)
     thresholds2 = torch.tensor(threshold_list2).to(hps.device)
 
+    fmodel = foolbox.models.PyTorchModel(model, bounds=(-1, 1.), num_classes=10)
+    attack = foolbox.attacks.DeepFoolL2Attack(fmodel)
+
     n_eval = 0
-    wrapped_target_model = PyTorchClassifier(model=model,
-                                             loss=None,
-                                             optimizer=None,
-                                             input_shape=(hps.image_channel, 32, 32),
-                                             nb_classes=hps.n_classes)
-
-    attack = DeepFool(wrapped_target_model, batch_size=hps.n_batch_test)
-
     # x_train_adv = adv_crafter.generate(x_train)
     # x_test_adv = adv_crafter.generate(x_test)
 
@@ -119,7 +113,9 @@ def attack_run_rejection_policy(model, hps):
         x, y = x[correct_idx], y[correct_idx]
         n_eval += correct_idx.sum().item()
 
-        adv_x = attack.generate(x)
+        img, label = x[0], y[0]
+
+        adv_x = attack(img.cpu().numpy(), label.cpu().numpy())
 
         with torch.no_grad():
             adv_x = torch.tensor(adv_x).to(hps.device)
