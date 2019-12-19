@@ -10,10 +10,7 @@ import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 
-import foolbox
-from art.attacks import DeepFool
-from art.utils import load_cifar10
-from art.classifiers import PyTorchClassifier
+from advertorch.attacks import LinfPGDAttack
 
 
 from models import ResNeXt, ResNet34
@@ -124,20 +121,12 @@ if __name__ == '__main__':
 
     sdim = load_pretrained_sdim(hps).to(hps.device)
 
-    (x_train, y_train), (x_test, y_test), min_pixel_value, max_pixel_value = load_cifar10()
+    dataset = get_dataset(data_name=hps.problem, train=False)
+    # hps.n_batch_test = 1
+    test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
 
-    # Step 1a: Swap axes to PyTorch's NCHW format
+    attack = LinfPGDAttack(sdim)
 
-    x_train = np.swapaxes(x_train, 1, 3).astype(np.float32)
-    x_test = np.swapaxes(x_test, 1, 3).astype(np.float32)
-
-    print(x_test.shape, x_test[:2].shape)
-    classifier = PyTorchClassifier(model=sdim.disc_classifier,
-                                   loss=None,
-                                   optimizer=None,
-                                   clip_values=(min_pixel_value, max_pixel_value),
-                                   input_shape=(3, 32, 32), nb_classes=10)
-
-    attack = DeepFool(classifier)
-    x_test_adv = attack.generate(x=x_test[:2])
+    for batch_id, (x, y) in enumerate(test_loader):
+        adv_x = attack.perturb(x)
 
