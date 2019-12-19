@@ -120,6 +120,7 @@ if __name__ == '__main__':
         os.mkdir(hps.attack_dir)
 
     sdim = load_pretrained_sdim(hps).to(hps.device)
+    sdim.disc_classifier.requires_grad = True
     sdim.eval()
 
     dataset = get_dataset(data_name=hps.problem, train=False)
