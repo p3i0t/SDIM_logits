@@ -7,7 +7,7 @@ import time
 import numpy as np
 
 import torch
-from torch.optim import Adam
+import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 
 from advertorch.attacks import LinfPGDAttack
@@ -127,11 +127,12 @@ if __name__ == '__main__':
     # hps.n_batch_test = 1
     test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
 
-    attack = LinfPGDAttack(sdim)
+    attack = LinfPGDAttack(sdim, loss_fn=nn.CrossEntropyLoss(reduction="sum"))
 
     for batch_id, (x, y) in enumerate(test_loader):
-        x = x.to(hps.device)
-        adv_x = attack.perturb(x)
+        x, y = x.to(hps.device), y.to(hps.device)
+
+        adv_x = attack.perturb(x, y)
 
         pred = sdim(adv_x).argmax(dim=1)
 
