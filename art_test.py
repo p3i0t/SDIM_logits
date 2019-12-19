@@ -120,6 +120,7 @@ if __name__ == '__main__':
         os.mkdir(hps.attack_dir)
 
     sdim = load_pretrained_sdim(hps).to(hps.device)
+    sdim.eval()
 
     dataset = get_dataset(data_name=hps.problem, train=False)
     # hps.n_batch_test = 1
@@ -128,5 +129,14 @@ if __name__ == '__main__':
     attack = LinfPGDAttack(sdim)
 
     for batch_id, (x, y) in enumerate(test_loader):
+        x = x.to(hps.device)
         adv_x = attack.perturb(x)
+
+        pred = sdim(adv_x).argmax(dim=1)
+
+        acc = (pred == y).float().mean().item()
+        print('acc: ', acc)
+        break
+
+
 
