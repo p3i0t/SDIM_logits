@@ -15,7 +15,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from models import ResNeXt, ResNet34
+from models import ResNeXt, ResNet18
 from utils import cal_parameters, get_dataset
 
 name_dict = {'resnet': 'ResNet', 'resnext': 'ResNeXt'}
@@ -82,10 +82,10 @@ def train(net, train_loader, test_loader, args):
         if train_loss < best_train_loss:
             best_train_loss = train_loss
 
-            if args.model_name == 'resnext':
+            if args.classifier_name == 'resnext':
                 save_name = 'ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
-            elif args.model_name == 'resnet':
-                save_name = 'ResNet34.pth'
+            elif args.classifier_name == 'resnet':
+                save_name = 'ResNet18.pth'
 
             if use_cuda and args.n_gpu > 1:
                 state = net.module.state_dict()
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     # Optimization options
     parser.add_argument('--epochs', type=int, default=300, help='Number of epochs to train.')
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size.')
-    parser.add_argument('--learning_rate', '-lr', type=float, default=0.1, help='The Learning Rate.')
+    parser.add_argument('--learning_rate', '-lr', type=float, default=0.05, help='The Learning Rate.')
     parser.add_argument('--momentum', type=float, default=0.9, help='Momentum.')
     parser.add_argument('--decay', type=float, default=0.0005, help='Weight decay (L2 penalty).')
     parser.add_argument('--test_batch_size', type=int, default=100)
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_gpu', type=int, default=1, help='0 = CPU.')
     parser.add_argument('--prefetch', type=int, default=2, help='Pre-fetching threads.')
 
-    parser.add_argument('--model_name', type=str, default='resnext', help='resnext or resnet')
+    parser.add_argument('--classifier_name', type=str, default='resnext', help='resnext or resnet')
 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
@@ -151,12 +151,12 @@ if __name__ == '__main__':
         os.makedirs(args.working_dir)
 
     # Init model, criterion, and optimizer
-    if args.model_name == 'resnext':
+    if args.classifier_name == 'resnext':
         net = ResNeXt(args.cardinality, args.depth, n_classes, args.base_width, args.widen_factor).to(args.device)
-    elif args.model_name == 'resnet':
-        net = ResNet34(n_classes=n_classes).to(args.device)
+    elif args.classifier_name == 'resnet':
+        net = ResNet18(n_classes=n_classes).to(args.device)
     else:
-        print('Classifier {} not available.'.format(args.model_name))
+        print('Classifier {} not available.'.format(args.classifier_name))
 
     print('# Classifier parameters: ', cal_parameters(net))
 
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     test_loader = DataLoader(dataset=test_data, batch_size=args.test_batch_size, shuffle=False)
 
     if args.inference:
-        save_name = '{}{}_{}x{}d.pth'.format(name_dict[args.model_name], args.depth, args.cardinality, args.base_width)
+        save_name = '{}{}_{}x{}d.pth'.format(name_dict[args.classifier_name], args.depth, args.cardinality, args.base_width)
         net.load_state_dict(torch.load(os.path.join(args.working_dir, save_name))['model_state'])
         acc = inference(net, test_loader, args)
         print('Test acc: {:.4f}'.format(acc))

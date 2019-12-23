@@ -11,7 +11,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
 
-from models import ResNeXt, ResNet34
+from models import ResNeXt, ResNet18
 from sdim_ce import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
 
@@ -21,7 +21,7 @@ def load_pretrained_model(hps):
     if hps.classifier_name == 'resnext':
         classifier = ResNeXt(hps.cardinality, hps.depth, hps.n_classes, hps.base_width, hps.widen_factor).to(hps.device)
     elif hps.classifier_name == 'resnet':
-        classifier = ResNet34(n_classes=hps.n_classes).to(hps.device)
+        classifier = ResNet18(n_classes=hps.n_classes).to(hps.device)
     else:
         print('Classifier {} not available.'.format(hps.classifier_name))
 
@@ -112,8 +112,9 @@ def inference(sdim, hps):
         hps.percentile=0.0
         thresholds = thresholds - 1e5   # set thresholds to be very low
 
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+#    transform = transforms.Compose([transforms.ToTensor(),
+#                                    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+    transform = transforms.ToTensor()
     interval = 10000
 
     results_dict = dict()
@@ -239,6 +240,7 @@ if __name__ == '__main__':
                 rep_size=hps.rep_size,
                 mi_units=hps.mi_units,
                 ).to(hps.device)
+
     optimizer = Adam(sdim.parameters(), lr=hps.lr)
 
     print('==>  # SDIM parameters: {}.'.format(cal_parameters(sdim)))

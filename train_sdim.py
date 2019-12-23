@@ -10,7 +10,7 @@ import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from models import ResNet34, ResNeXt
+from models import ResNet18, ResNeXt
 from sdim import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
 
@@ -23,7 +23,7 @@ def load_pretrained_model(hps):
     if hps.classifier_name == 'resnext':
         classifier = ResNeXt(hps.cardinality, hps.depth, hps.n_classes, hps.base_width, hps.widen_factor).to(hps.device)
     elif hps.classifier_name == 'resnet':
-        classifier = ResNet34(n_classes=hps.n_classes).to(hps.device)
+        classifier = ResNet18(n_classes=hps.n_classes).to(hps.device)
     else:
         print('Classifier {} not available.'.format(hps.classifier_name))
 
@@ -32,7 +32,7 @@ def load_pretrained_model(hps):
     if hps.classifier_name == 'resnext':
         save_name = 'ResNeXt{}_{}x{}d.pth'.format(hps.depth, hps.cardinality, hps.base_width)
     elif hps.classifier_name == 'resnet':
-        save_name = 'ResNet34.pth'
+        save_name = 'ResNet18.pth'
 
     checkpoint = torch.load(os.path.join(hps.working_dir, save_name), map_location=lambda storage, loc: storage)
     print('Load pre-trained checkpoint: {}'.format(save_name))
@@ -42,6 +42,7 @@ def load_pretrained_model(hps):
 
 
 def train(sdim, optimizer, hps):
+    sdim.disc_classifier.requires_grad = False
     torch.manual_seed(hps.seed)
     np.random.seed(hps.seed)
 
@@ -108,11 +109,13 @@ def train(sdim, optimizer, hps):
             x = x.to(hps.device)
             y = y.to(hps.device)
 
-            preds = sdim(x).argmax(dim=1)
+            with torch.no_grad():
+                preds = sdim(x).argmax(dim=1)
             acc = (preds == y).float().mean()
             acc_meter.update(acc.item(), x.size(0))
 
-            loss, mi_loss, nll_loss, ll_margin = sdim.eval_losses(x, y)
+            with torch.no_grad():
+                loss, mi_loss, nll_loss, ll_margin = sdim.eval_losses(x, y)
 
             loss_meter.update(loss.item(), x.size(0))
             MI_meter.update(mi_loss.item(), x.size(0))
@@ -189,7 +192,7 @@ if __name__ == '__main__':
 
     # Optimization hyperparams:
     parser.add_argument("--n_batch_train", type=int,
-                        default=64, help="Minibatch size")
+                        default=128, help="Minibatch size")
     parser.add_argument("--n_batch_test", type=int,
                         default=200, help="Minibatch size")
     parser.add_argument("--optimizer", type=str,

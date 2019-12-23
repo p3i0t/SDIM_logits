@@ -38,12 +38,12 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
+            #transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
         ])
 
         transform_3d = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
+            #transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
         ])
 
         if train:

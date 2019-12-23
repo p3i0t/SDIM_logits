@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, Dataset
 import foolbox
 
 
-from models import ResNeXt, ResNet34
+from models import ResNeXt, ResNet18
 from sdim_ce import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
 
@@ -23,7 +23,7 @@ def load_pretrained_sdim(hps):
     if hps.classifier_name == 'resnext':
         classifier = ResNeXt(hps.cardinality, hps.depth, hps.n_classes, hps.base_width, hps.widen_factor).to(hps.device)
     elif hps.classifier_name == 'resnet':
-        classifier = ResNet34(n_classes=hps.n_classes).to(hps.device)
+        classifier = ResNet18(n_classes=hps.n_classes).to(hps.device)
     else:
         print('Classifier {} not available.'.format(hps.classifier_name))
 
@@ -220,5 +220,6 @@ if __name__ == '__main__':
         os.mkdir(hps.attack_dir)
 
     sdim = load_pretrained_sdim(hps).to(hps.device)
+    sdim.disc_classifier.requires_grad = True
 
     attack_run_rejection_policy(sdim, hps)
