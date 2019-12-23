@@ -10,7 +10,7 @@ import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 
-import foolbox
+from advertorch.attacks import LinfPGDAttack, CarliniWagnerL2Attack
 
 
 from models import ResNeXt, ResNet18
@@ -93,8 +93,11 @@ def attack_run_rejection_policy(model, hps):
     thresholds1 = torch.tensor(threshold_list1).to(hps.device)
     thresholds2 = torch.tensor(threshold_list2).to(hps.device)
 
-    fmodel = foolbox.models.PyTorchModel(model, bounds=(-1, 1.), num_classes=10)
-    attack = foolbox.attacks.DeepFoolL2Attack(fmodel)
+    eps = 0.1
+    adversary = LinfPGDAttack(
+        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
+        nb_iter=40, eps_iter=0.01, rand_init=True, clip_min=0.0,
+        clip_max=1.0, targeted=hps.targeted)
 
     n_eval = 0
     # x_train_adv = adv_crafter.generate(x_train)
@@ -113,12 +116,9 @@ def attack_run_rejection_policy(model, hps):
         x, y = x[correct_idx], y[correct_idx]
         n_eval += correct_idx.sum().item()
 
-        img, label = x[0], y[0]
-
-        adv_x = attack(img.cpu().numpy(), label.cpu().numpy())
+        adv_x = adversary.perturb(x, y)
 
         with torch.no_grad():
-            adv_x = torch.tensor(adv_x).to(hps.device)
             output = model(adv_x)
 
         logits, preds = output.max(dim=1)
@@ -132,7 +132,8 @@ def attack_run_rejection_policy(model, hps):
         rej_idx2 = logits < thresholds2[preds]
         n_rejected_adv2 += rej_idx2.sum().item()
 
-        break
+        if batch_id == 10:
+            break
 
     reject_rate1 = n_rejected_adv1 / n_successful_adv
     reject_rate2 = n_rejected_adv2 / n_successful_adv
