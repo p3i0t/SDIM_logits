@@ -138,14 +138,12 @@ def attack_run_rejection_policy(sdim, hps):
         success_idx = (preds != y)
         n_successful_adv += success_idx.float().sum().item()
 
+        logits, preds = output[successful_idx].max(dim=1)
         rej_idx1 = logits < thresholds1[preds]
         n_rejected_adv1 += rej_idx1.sum().item()
 
         rej_idx2 = logits < thresholds2[preds]
         n_rejected_adv2 += rej_idx2.sum().item()
-
-        if batch_id == 10:
-            break
 
     reject_rate1 = n_rejected_adv1 / n_successful_adv
     reject_rate2 = n_rejected_adv2 / n_successful_adv
