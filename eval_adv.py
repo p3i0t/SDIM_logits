@@ -138,7 +138,7 @@ def attack_run_rejection_policy(sdim, hps):
         success_idx = (preds != y)
         n_successful_adv += success_idx.float().sum().item()
 
-        logits, preds = output[successful_idx].max(dim=1)
+        logits, preds = output[success_idx].max(dim=1)
         rej_idx1 = logits < thresholds1[preds]
         n_rejected_adv1 += rej_idx1.sum().item()
 
