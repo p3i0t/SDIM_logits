@@ -43,14 +43,14 @@ def load_pretrained_sdim(hps):
     return sdim
 
 
-def attack_run_rejection_policy(model, hps):
+def attack_run_rejection_policy(sdim, hps):
     """
     An attack run with rejection policy.
     :param model: Pytorch model.
     :param hps: hyperparameters
     :return:
     """
-    model.eval()
+    sdim.eval()
 
     # Get thresholds
     print('Extracting thresholds.')
@@ -66,7 +66,7 @@ def attack_run_rejection_policy(model, hps):
         for batch_id, (x, y) in enumerate(in_test_loader):
             x = x.to(hps.device)
             y = y.to(hps.device)
-            ll = model(x)
+            ll = sdim(x)
 
             correct_idx = ll.argmax(dim=1) == y
 
@@ -94,23 +94,34 @@ def attack_run_rejection_policy(model, hps):
     thresholds1 = torch.tensor(threshold_list1).to(hps.device)
     thresholds2 = torch.tensor(threshold_list2).to(hps.device)
 
-    eps = 0.1
-    adversary = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-        nb_iter=40, eps_iter=0.01, rand_init=True, clip_min=0.0,
-        clip_max=1.0, targeted=hps.targeted)
+    if hps.attack == 'pgd':
+        eps = 0.2
+        hps.targeted = False
+        adversary = LinfPGDAttack(
+            sdim.disc_classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
+            nb_iter=100, eps_iter=0.01, rand_init=True, clip_min=0.0,
+            clip_max=1.0, targeted=hps.targeted)
+    elif hps.attack == 'cw':
+        confidence = 0
+        adversary = CarliniWagnerL2Attack(sdim.disc_classifier,
+                                          num_classes=10,
+                                          confidence=confidence,
+                                          clip_min=0.,
+                                          clip_max=1.,
+                                          max_iterations=100
+                                          )
+    else:
+        print('attack not available.')
 
     n_eval = 0
-    # x_train_adv = adv_crafter.generate(x_train)
-    # x_test_adv = adv_crafter.generate(x_test)
-
     dataset = get_dataset(data_name=hps.problem, train=False)
     test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
+
     for batch_id, (x, y) in enumerate(test_loader):
         # Note that images are scaled to [0., 1.0]
         x, y = x.to(hps.device), y.to(hps.device)
         with torch.no_grad():
-            output = model(x)
+            output = sdim.disc_classifier(x)
 
         pred = output.argmax(dim=1)
         correct_idx = pred == y  # Only evaluate on the correct classified samples by clean classifier.
@@ -120,7 +131,7 @@ def attack_run_rejection_policy(model, hps):
         adv_x = adversary.perturb(x, y)
 
         with torch.no_grad():
-            output = model(adv_x)
+            output = sdim(adv_x)
 
         logits, preds = output.max(dim=1)
 
@@ -200,7 +211,7 @@ if __name__ == '__main__':
     parser.add_argument("--classifier_name", type=str, default='resnet',
                         help="classifier name: resnet|densenet")
     parser.add_argument("--attack", type=str, default='cw',
-                        help="Location of data")
+                        help="type of adversarial attack")
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
 

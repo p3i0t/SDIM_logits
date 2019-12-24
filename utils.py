@@ -52,7 +52,7 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
         else:
             transform = transform_3d
 
-        dataset = datasets.CIFAR10(data_dir, train=train, download=False, transform=transform)
+        dataset = datasets.CIFAR10(data_dir, train=train, download=True, transform=transform)
     elif data_name == 'svhn':
 
         transform_3d_crop_flip = transforms.Compose([
