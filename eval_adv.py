@@ -17,6 +17,7 @@ from advertorch.attacks import LinfPGDAttack, CarliniWagnerL2Attack
 from models import ResNeXt, ResNet18
 from sdim_ce import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
+from torchvision.utils import save_image
 
 
 def load_pretrained_sdim(hps):
@@ -89,7 +90,7 @@ def attack_run_rejection_policy(sdim, hps):
     thresholds2 = torch.tensor(threshold_list2).to(hps.device)
 
     if hps.attack == 'pgd':
-        eps = 0.1
+        eps = 0.05
         hps.targeted = False
         adversary = LinfPGDAttack(
             sdim.disc_classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
@@ -102,7 +103,7 @@ def attack_run_rejection_policy(sdim, hps):
                                           confidence=confidence,
                                           clip_min=0.,
                                           clip_max=1.,
-                                          max_iterations=100
+                                          max_iterations=500
                                           )
     else:
         print('attack {} not available.'.format(hps.attack))
@@ -123,16 +124,20 @@ def attack_run_rejection_policy(sdim, hps):
         # Note that images are scaled to [0., 1.0]
         x, y = x.to(hps.device), y.to(hps.device)
 
-        # Only evaluate on the correct classified samples by clean classifier.
-        with torch.no_grad():
-            output = sdim.disc_classifier(x)
-        correct_idx = output.argmax(dim=1) == y
-        x, y = x[correct_idx], y[correct_idx]
-        n_eval += correct_idx.sum().item()
+        # # Only evaluate on the correct classified samples by clean classifier.
+        # with torch.no_grad():
+        #     output = sdim.disc_classifier(x)
+        # correct_idx = output.argmax(dim=1) == y
+        # x, y = x[correct_idx], y[correct_idx]
+        # n_eval += correct_idx.sum().item()
+        n_eval += x.size()[0]
 
+        # save_image(x, 'clean_x.png')
         # Generate adversarial examples
         adv_x = adversary.perturb(x, y)
 
+        # save_image(adv_x, 'adv_x.png')
+        # break
         # Prediction results with sdim-logit
         with torch.no_grad():
             output = sdim(adv_x)
