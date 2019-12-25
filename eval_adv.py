@@ -81,12 +81,6 @@ def attack_run_rejection_policy(sdim, hps):
         threshold_list2.append(thresh2)  # class mean as threshold
         print('1st & 2nd percentile thresholds: {:.3f}, {:.3f}'.format(thresh1, thresh2))
 
-    # Evaluation
-    n_total = 0   # total number of correct classified samples by clean classifier
-    n_successful_adv = 0  # total number of successful adversarial examples generated
-    n_rejected_adv1 = 0   # total number of successfully rejected (successful) adversarial examples, <= n_successful_adv
-    n_rejected_adv2 = 0   # total number of successfully rejected (successful) adversarial examples, <= n_successful_adv
-
     attack_path = os.path.join(hps.attack_dir, hps.attack)
     if not os.path.exists(attack_path):
         os.mkdir(attack_path)
@@ -111,46 +105,72 @@ def attack_run_rejection_policy(sdim, hps):
                                           max_iterations=100
                                           )
     else:
-        print('attack not available.')
+        print('attack {} not available.'.format(hps.attack))
 
-    n_eval = 0
+    # Evaluation
+    n_correct_adv1 = 0   # total number of successfully classified adversarial examples
+    n_correct_adv2 = 0   # total number of successfully classified adversarial examples
+    n_wrong_adv1 = 0  # total number of incorrectly classified adversarial examples
+    n_wrong_adv2 = 0  # total number of incorrectly classified adversarial examples
+    n_rejected_adv1 = 0   # total number of successfully rejected (successful) adversarial examples, <= n_successful_adv
+    n_rejected_adv2 = 0   # total number of successfully rejected (successful) adversarial examples, <= n_successful_adv
+    n_eval = 0            # total number of correct classified samples by clean classifier
+
     dataset = get_dataset(data_name=hps.problem, train=False)
     test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
 
     for batch_id, (x, y) in enumerate(test_loader):
         # Note that images are scaled to [0., 1.0]
         x, y = x.to(hps.device), y.to(hps.device)
+
+        # Only evaluate on the correct classified samples by clean classifier.
         with torch.no_grad():
             output = sdim.disc_classifier(x)
-
-        pred = output.argmax(dim=1)
-        correct_idx = pred == y  # Only evaluate on the correct classified samples by clean classifier.
+        correct_idx = output.argmax(dim=1) == y
         x, y = x[correct_idx], y[correct_idx]
         n_eval += correct_idx.sum().item()
 
+        # Generate adversarial examples
         adv_x = adversary.perturb(x, y)
 
+        # Prediction results with sdim-logit
         with torch.no_grad():
             output = sdim(adv_x)
-
         logits, preds = output.max(dim=1)
 
-        success_idx = (preds != y)
-        n_successful_adv += success_idx.float().sum().item()
-
-        logits, preds = output[success_idx].max(dim=1)
+        # Eval on threshold 1st percentile
         rej_idx1 = logits < thresholds1[preds]
         n_rejected_adv1 += rej_idx1.sum().item()
+        idx1 = rej_idx1.bitwise_not()
 
+        n_correct_adv1 += (preds[idx1] == y[idx1]).sum().item()
+        n_wrong_adv1 += (preds[idx1] != y[idx1]).sum().item()
+
+        # Eval on threshold 2nd percentile
         rej_idx2 = logits < thresholds2[preds]
         n_rejected_adv2 += rej_idx2.sum().item()
+        idx2 = rej_idx2.bitwise_not()
 
-    reject_rate1 = n_rejected_adv1 / n_successful_adv
-    reject_rate2 = n_rejected_adv2 / n_successful_adv
-    success_adv_rate = n_successful_adv / n_eval
-    print('success rate of adv examples generation: {}/{}={:.4f}'.format(n_successful_adv, n_eval, success_adv_rate))
-    print('1st percentile, reject success rate: {}/{}={:.4f}'.format(n_rejected_adv1, n_successful_adv, reject_rate1))
-    print('2nd percentile, reject success rate: {}/{}={:.4f}'.format(n_rejected_adv2, n_successful_adv, reject_rate2))
+        n_correct_adv2 += (preds[idx2] == y[idx2]).sum().item()
+        n_wrong_adv2 += (preds[idx2] != y[idx2]).sum().item()
+
+    reject_rate1 = n_rejected_adv1 / n_eval
+    reject_rate2 = n_rejected_adv2 / n_eval
+    correct_rate1 = n_correct_adv1 / n_eval
+    correct_rate2 = n_correct_adv2 / n_eval
+    wrong_rate1 = n_wrong_adv1 / n_eval
+    wrong_rate2 = n_wrong_adv2 / n_eval
+
+    name = 'adv_results_{}_{}.pth'.format(hps.classifier_name, hps.attack)
+
+    results_dict = {'reject_rate1': reject_rate1, 'reject_rate2': reject_rate2,
+                    'correct_rate1': correct_rate1, 'correct_rate2': correct_rate2,
+                    'wrong_rate1': wrong_rate1, 'wrong_rate2': wrong_rate2}
+    torch.save(results_dict, os.path.join(hps.log_dir, name))
+
+    print("================ Results =================")
+    print('1st percentile, reject: {:.4f}, correct: {:.4f}, wrong: {:.4f}'.format(reject_rate1, correct_rate1, wrong_rate1))
+    print('2nd percentile, reject: {:.4f}, correct: {:.4f}, wrong: {:.4f}'.format(reject_rate2, correct_rate2, wrong_rate2))
 
 
 if __name__ == '__main__':
