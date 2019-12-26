@@ -103,7 +103,7 @@ def attack_run_rejection_policy(sdim, hps):
                                           confidence=confidence,
                                           clip_min=0.,
                                           clip_max=1.,
-                                          max_iterations=500
+                                          max_iterations=100
                                           )
     else:
         print('attack {} not available.'.format(hps.attack))
