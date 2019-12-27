@@ -75,15 +75,19 @@ def adv_train(classifier, train_loader, test_loader, args):
     for epoch in range(10):
         # adversarial training
         adv_loss, adv_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer, attack=adversary)
-        print('Adv Train loss: {:.4f}, acc: {:.4f}'.format(adv_loss, adv_acc))
+        print('Epoch: {}, Adv Train loss: {:.4f}, acc: {:.4f}'.format(epoch + 1, adv_loss, adv_acc))
+
+        train_loss, train_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer)
+        print('Clean training loss: {:.4f}, acc: {:.4f}.'.format(train_loss, train_acc))
 
         # Eval on normal
         clean_loss, clean_acc = run_epoch(classifier, train_loader, args)
         print('Clean Test loss: {:.4f}, acc: {:.4f}'.format(clean_loss, clean_acc))
 
         # Eval on adv
-        adv_loss, adv_acc = run_epoch(classifier, train_loader, args, attack=adversary)
-        print('Clean Test loss: {:.4f}, acc: {:.4f}'.format(clean_loss, clean_acc))
+        if epoch % 4 == 1:
+            adv_loss, adv_acc = run_epoch(classifier, train_loader, args, attack=adversary)
+            print('Adv Test loss: {:.4f}, acc: {:.4f}'.format(adv_loss, adv_acc))
 
         if args.classifier_name == 'resnext':
             save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
