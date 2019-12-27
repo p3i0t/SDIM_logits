@@ -62,11 +62,11 @@ def train_epoch(classifier, data_loader, optimizer, args):
 
 def adv_train(classifier, train_loader, test_loader, args):
     classifier.eval()
-    eps = 0.05
+    eps = 0.02
     args.targeted = False
     adversary = LinfPGDAttack(
         classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-        nb_iter=100, eps_iter=0.01, rand_init=True, clip_min=0.0,
+        nb_iter=5, eps_iter=0.01, rand_init=True, clip_min=0.0,
         clip_max=1.0, targeted=args.targeted)
 
     adv_x_list = []
@@ -127,7 +127,7 @@ def adv_train(classifier, train_loader, test_loader, args):
         # Evaluation on adv data
         classifier.eval()
         correct = 0
-        for batch_idx, (x, y) in enumerate(data_loader):
+        for batch_idx, (x, y) in enumerate(test_loader):
             x, y = x.to(args.device), y.to(args.device)
 
             adv_x = adversary.perturb(x, y)
