@@ -66,7 +66,7 @@ def adv_train(classifier, train_loader, test_loader, args):
     args.targeted = False
     adversary = LinfPGDAttack(
         classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-        nb_iter=40, eps_iter=0.01, rand_init=True, clip_min=0.0,
+        nb_iter=50, eps_iter=0.01, rand_init=True, clip_min=0.0,
         clip_max=1.0, targeted=args.targeted)
 
     adv_x_list = []
@@ -74,7 +74,7 @@ def adv_train(classifier, train_loader, test_loader, args):
     for batch_id, (x, y) in enumerate(train_loader):
         # Note that images are scaled to [0., 1.0]
         x, y = x.to(args.device), y.to(args.device)
-        if batch_id % 10 == 1:
+        if batch_id % 100 == 1:
             print('Generating Adv Examples: {}'.format(batch_id))
         # Generate adversarial examples
         adv_x = adversary.perturb(x, y)
@@ -90,7 +90,6 @@ def adv_train(classifier, train_loader, test_loader, args):
 
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
 
-    best_train_loss = np.inf
     adv_iter_steps = 50000
 
     loss_list = []
