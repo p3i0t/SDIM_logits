@@ -18,6 +18,8 @@ from torch.utils.data import DataLoader
 from models import ResNeXt, ResNet18
 from utils import cal_parameters, get_dataset
 
+from advertorch.attacks import LinfPGDAttack, CarliniWagnerL2Attack
+
 name_dict = {'resnet': 'ResNet', 'resnext': 'ResNeXt'}
 
 
