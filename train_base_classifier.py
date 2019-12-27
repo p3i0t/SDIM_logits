@@ -92,12 +92,12 @@ def adv_train(classifier, train_loader, test_loader, args):
 
     best_train_loss = np.inf
     for epoch in range(10):
-        normal_x, normal_y = next(iter(train_loader))
+        normal_x, normal_y = next(iter(train_xloader))
         adv_x, adv_y = next(iter(adv_loader))
 
         print("Epoch {}".format(epoch + 1))
         loss_list = []
-        while normal_batch is not None and adv_batch is not None:
+        while normal_x is not None and adv_x is not None:
             classifier.train()
             batch_x = torch.cat([normal_x, adv_x], dim=0)
             batch_y = torch.cat([normal_y, adv_y], dim=0)
