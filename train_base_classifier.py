@@ -139,7 +139,7 @@ def adv_train(classifier, train_loader, test_loader, args):
             pred = output.max(1)[1]
             correct += float(pred.eq(y).sum())
 
-        adv_acc = correct / len(data_loader.dataset)
+        adv_acc = correct / len(test_loader.dataset)
         print('Adv Acc. {:.4f}'.format(adv_acc))
 
         if train_loss < best_train_loss:
