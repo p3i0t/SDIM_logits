@@ -76,6 +76,8 @@ def adv_train(classifier, train_loader, test_loader, args):
         x, y = x.to(args.device), y.to(args.device)
         if batch_id % 10 == 1:
             print('Generating Adv Examples: {}'.format(batch_id))
+        if batch_id == 100:
+            break
         # Generate adversarial examples
         adv_x = adversary.perturb(x, y)
         adv_x_list.append(adv_x)
