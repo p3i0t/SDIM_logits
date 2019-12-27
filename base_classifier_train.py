@@ -67,7 +67,7 @@ def adv_train(classifier, train_loader, test_loader, args):
     args.targeted = False
     adversary = LinfPGDAttack(
         classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-        nb_iter=50, eps_iter=0.01, rand_init=True, clip_min=0.0,
+        nb_iter=30, eps_iter=0.01, rand_init=True, clip_min=0.0,
         clip_max=1.0, targeted=args.targeted)
 
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
