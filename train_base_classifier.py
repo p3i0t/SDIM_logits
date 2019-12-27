@@ -95,6 +95,7 @@ def adv_train(classifier, train_loader, test_loader, args):
     best_train_loss = np.inf
     for epoch in range(10):
         normal_x, normal_y = next(iter(train_loader))
+        normal_x, normal_y = normal_x.to(args.device), normal_y.to(args.device)
         adv_x, adv_y = next(iter(adv_loader))
 
         print("Epoch {}".format(epoch + 1))
