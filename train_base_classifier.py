@@ -142,23 +142,20 @@ def adv_train(classifier, train_loader, test_loader, args):
         adv_acc = correct / len(test_loader.dataset)
         print('Adv Acc. {:.4f}'.format(adv_acc))
 
-        if train_loss < best_train_loss:
-            best_train_loss = train_loss
+        if args.classifier_name == 'resnext':
+            save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
+        elif args.classifier_name == 'resnet':
+            save_name = 'AT_ResNet18.pth'
 
-            if args.classifier_name == 'resnext':
-                save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
-            elif args.classifier_name == 'resnet':
-                save_name = 'AT_ResNet18.pth'
+        if use_cuda and args.n_gpu > 1:
+            state = classifier.module.state_dict()
+        else:
+            state = classifier.state_dict()
 
-            if use_cuda and args.n_gpu > 1:
-                state = classifier.module.state_dict()
-            else:
-                state = classifier.state_dict()
+        check_point = {'model_state': state, 'train_acc': train_accuracy, 'test_acc': test_accuracy}
 
-            check_point = {'model_state': state, 'train_acc': train_accuracy, 'test_acc': test_accuracy}
-
-            torch.save(check_point, os.path.join(args.working_dir, save_name))
-            print("Saving new checkpoint ...")
+        torch.save(check_point, os.path.join(args.working_dir, save_name))
+        print("Saving new checkpoint ...")
 
 
 def train(classifier, train_loader, test_loader, args):
