@@ -269,14 +269,19 @@ if __name__ == '__main__':
     test_loader = DataLoader(dataset=test_data, batch_size=args.test_batch_size, shuffle=False)
 
     if args.inference:
-        save_name = '{}{}_{}x{}d.pth'.format(name_dict[args.classifier_name], args.depth, args.cardinality, args.base_width)
+        if args.classifier_name == 'resnext':
+            save_name = 'ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
+        elif args.classifier_name == 'resnet':
+            save_name = 'ResNet18.pth'
         classifier.load_state_dict(torch.load(os.path.join(args.working_dir, save_name))['model_state'])
         acc = inference(classifier, test_loader, args)
         print('Test acc: {:.4f}'.format(acc))
     elif args.adv_training:
         # Perform adversarial training on pre-trained classifier.
-        save_name = '{}{}_{}x{}d.pth'.format(name_dict[args.classifier_name], args.depth, args.cardinality,
-                                             args.base_width)
+        if args.classifier_name == 'resnext':
+            save_name = 'ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
+        elif args.classifier_name == 'resnet':
+            save_name = 'ResNet18.pth'
         classifier.load_state_dict(torch.load(os.path.join(args.working_dir, save_name))['model_state'])
         adv_train(classifier, train_loader, test_loader, args)
     else:
