@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--inference", action="store_true",
                         help="Used in inference mode")
-    parser.add_argument("--adv_train", action="store_true",
+    parser.add_argument("--adv_training", action="store_true",
                         help="Use adversarial training")
 
     # Optimization options
