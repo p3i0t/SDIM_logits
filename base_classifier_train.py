@@ -17,51 +17,52 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from models import ResNeXt, ResNet18
-from utils import cal_parameters, get_dataset
+from utils import cal_parameters, get_dataset, AverageMeter
 
-from advertorch.attacks import LinfPGDAttack, CarliniWagnerL2Attack
+from advertorch.attacks import LinfPGDAttack
 
 name_dict = {'resnet': 'ResNet', 'resnext': 'ResNeXt'}
 
 
-# test function (forward only)
-def inference(classifier, data_loader, args):
-    classifier.eval()
-    correct = 0
+def run_epoch(classifier, data_loader, args, optimizer=None, attack=None):
+    """
+    Run one epoch.
+    :param classifier: torch.nn.Module representing the classifier.
+    :param data_loader: dataloader
+    :param args:
+    :param optimizer: if None, then inference; if optimizer given, training and optimizing.
+    :param attack: advertorch attack for adv examples generation. If None, do normal training or inference.
+    :return: mean of loss, mean of accuracy of this epoch.
+    """
+    if optimizer:
+        classifier.train()
+    else:
+        classifier.eval()
+
+    loss_meter = AverageMeter('loss')
+    acc_meter = AverageMeter('Acc')
     for batch_idx, (x, y) in enumerate(data_loader):
         x, y = x.to(args.device), y.to(args.device)
-        # forward
-        with torch.no_grad():
-            output = classifier(x)
 
-        # accuracy
-        pred = output.max(1)[1]
-        correct += float(pred.eq(y).sum())
-
-    test_accuracy = correct / len(data_loader.dataset)
-    return test_accuracy
-
-
-# train function (forward, backward, update)
-def train_epoch(classifier, data_loader, optimizer, args):
-    classifier.train()
-    loss_list = []
-    for batch_idx, (x, y) in enumerate(data_loader):
-        x, y = x.to(args.device), y.to(args.device)
-        # forward
-        output = classifier(x)
-
-        # backward
-        optimizer.zero_grad()
+        if attack is not None:
+            x_ = attack.perturb(x, y)
+        else:
+            x_ = x
+        output = classifier(x_)
         loss = F.cross_entropy(output, y)
-        loss.backward()
-        optimizer.step()
-        loss_list.append(loss.item())
-    return np.mean(loss_list)
+
+        if optimizer:
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        loss_meter.update(loss.item(), x.size(0))
+        acc = (output.argmax(dim=1) == y).float().mean().item()
+        acc_meter.update(acc, x.size(0))
+    return loss_meter.avg, acc_meter.avg
 
 
 def adv_train(classifier, train_loader, test_loader, args):
-    classifier.eval()
     eps = 0.02
     args.targeted = False
     adversary = LinfPGDAttack(
@@ -69,92 +70,35 @@ def adv_train(classifier, train_loader, test_loader, args):
         nb_iter=50, eps_iter=0.01, rand_init=True, clip_min=0.0,
         clip_max=1.0, targeted=args.targeted)
 
-    adv_x_list = []
-    adv_y_list = []
-    for batch_id, (x, y) in enumerate(train_loader):
-        # Note that images are scaled to [0., 1.0]
-        x, y = x.to(args.device), y.to(args.device)
-        if batch_id % 100 == 1:
-            print('Generating Adv Examples: {}'.format(batch_id))
-        # Generate adversarial examples
-        adv_x = adversary.perturb(x, y)
-        adv_x_list.append(adv_x.cpu())
-        adv_y_list.append(y.cpu())
-
-    adv_x_tensor = torch.cat(adv_x_list, dim=0)
-    adv_y_tensor = torch.cat(adv_y_list, dim=0)
-    from torch.utils.data import TensorDataset
-    adv_dataset = TensorDataset(adv_x_tensor, adv_y_tensor)
-
-    adv_loader = DataLoader(adv_dataset, batch_size=args.batch_size, shuffle=True)
-
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
 
-    adv_iter_steps = 50000
+    for epoch in range(10):
+        # adversarial training
+        adv_loss, adv_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer, attack=adversary)
+        print('Adv Train loss: {:.4f}, acc: {:.4f}'.format(adv_loss, adv_acc))
 
-    loss_list = []
-    for step in range(adv_iter_steps):
-        classifier.train()
+        # Eval on normal
+        clean_loss, clean_acc = run_epoch(classifier, train_loader, args)
+        print('Clean Test loss: {:.4f}, acc: {:.4f}'.format(clean_loss, clean_acc))
 
-        normal_x, normal_y = next(iter(train_loader))
-        adv_x, adv_y = next(iter(adv_loader))
-        batch_x = torch.cat([normal_x, adv_x], dim=0)
-        batch_y = torch.cat([normal_y, adv_y], dim=0)
-        x, y = batch_x.to(args.device), batch_y.to(args.device)
+        # Eval on adv
+        adv_loss, adv_acc = run_epoch(classifier, train_loader, args, attack=adversary)
+        print('Clean Test loss: {:.4f}, acc: {:.4f}'.format(clean_loss, clean_acc))
 
-        assert normal_x is not None and adv_x is not None
+        if args.classifier_name == 'resnext':
+            save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
+        elif args.classifier_name == 'resnet':
+            save_name = 'AT_ResNet18.pth'
 
-        # forward
-        output = classifier(x)
+        if use_cuda and args.n_gpu > 1:
+            state = classifier.module.state_dict()
+        else:
+            state = classifier.state_dict()
 
-        # backward
-        optimizer.zero_grad()
-        loss = F.cross_entropy(output, y)
-        loss.backward()
-        optimizer.step()
+        check_point = {'model_state': state, 'clean_acc': clean_acc, 'adv_acc': adv_acc}
 
-        loss_list.append(loss.item())
-        if step % 5000 == 1:
-            print('Step: {}, mean training loss: {:.4f}'.format(step, np.mean(loss_list)))
-            loss_list = []
-
-            # Evaluation on clean data
-            classifier.eval()
-            clean_acc = inference(classifier, test_loader, args)
-            print('Clean Acc. {:.4f}'.format(clean_acc))
-
-            # Evaluation on adv data
-            classifier.eval()
-            correct = 0
-            for batch_idx, (x, y) in enumerate(test_loader):
-                x, y = x.to(args.device), y.to(args.device)
-
-                adv_x = adversary.perturb(x, y)
-                # forward
-                with torch.no_grad():
-                    output = classifier(adv_x)
-
-                # accuracy
-                pred = output.max(1)[1]
-                correct += float(pred.eq(y).sum())
-
-            adv_acc = correct / len(test_loader.dataset)
-            print('Adv Acc. {:.4f}'.format(adv_acc))
-
-            if args.classifier_name == 'resnext':
-                save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
-            elif args.classifier_name == 'resnet':
-                save_name = 'AT_ResNet18.pth'
-
-            if use_cuda and args.n_gpu > 1:
-                state = classifier.module.state_dict()
-            else:
-                state = classifier.state_dict()
-
-            check_point = {'model_state': state, 'clean_acc': clean_acc, 'adv_acc': adv_acc}
-
-            torch.save(check_point, os.path.join(args.working_dir, save_name))
-            print("Saving new checkpoint ...")
+        torch.save(check_point, os.path.join(args.working_dir, save_name))
+        print("Saving new checkpoint ...")
 
 
 def train(classifier, train_loader, test_loader, args):
@@ -170,14 +114,11 @@ def train(classifier, train_loader, test_loader, args):
             for param_group in optimizer.param_groups:
                 param_group['lr'] = args.learning_rate
 
-        train_loss = train_epoch(classifier, train_loader, optimizer, args)
-        print('Epoch: {}, training loss: {:.4f}.'.format(epoch + 1, train_loss))
+        train_loss, train_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer)
+        print('Epoch: {}, training loss: {:.4f}, acc: {:.4f}.'.format(epoch + 1, train_loss, train_acc))
 
-        train_accuracy = inference(classifier, train_loader, args)
-        print("Train accuracy: {:.4f}".format(train_accuracy))
-
-        test_accuracy = inference(classifier, test_loader, args)
-        print("Test accuracy: {:.4f}".format(test_accuracy))
+        test_acc = run_epoch(classifier, test_loader, args)
+        print("Test acc: {:.4f}".format(test_acc))
 
         if train_loss < best_train_loss:
             best_train_loss = train_loss
@@ -192,7 +133,7 @@ def train(classifier, train_loader, test_loader, args):
             else:
                 state = classifier.state_dict()
 
-            check_point = {'model_state': state, 'train_acc': train_accuracy, 'test_acc': test_accuracy}
+            check_point = {'model_state': state, 'train_acc': train_acc, 'test_acc': test_acc}
 
             torch.save(check_point, os.path.join(args.working_dir, save_name))
             print("Saving new checkpoint ...")
@@ -278,8 +219,8 @@ if __name__ == '__main__':
         elif args.classifier_name == 'resnet':
             save_name = 'ResNet18.pth'
         classifier.load_state_dict(torch.load(os.path.join(args.working_dir, save_name))['model_state'])
-        acc = inference(classifier, test_loader, args)
-        print('Test acc: {:.4f}'.format(acc))
+        loss, acc = run_epoch(classifier, test_loader, args)
+        print('Test loss: {:.4f}, acc: {:.4f}'.format(loss, acc))
     elif args.adv_training:
         # Perform adversarial training on pre-trained classifier.
         if args.classifier_name == 'resnext':
