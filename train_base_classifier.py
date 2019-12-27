@@ -78,8 +78,8 @@ def adv_train(classifier, train_loader, test_loader, args):
             print('Generating Adv Examples: {}'.format(batch_id))
         # Generate adversarial examples
         adv_x = adversary.perturb(x, y)
-        adv_x_list.append(adv_x)
-        adv_y_list.append(y)
+        adv_x_list.append(adv_x.cpu())
+        adv_y_list.append(y.cpu())
 
     adv_x_tensor = torch.cat(adv_x_list, dim=0)
     adv_y_tensor = torch.cat(adv_y_list, dim=0)
@@ -91,36 +91,36 @@ def adv_train(classifier, train_loader, test_loader, args):
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
 
     best_train_loss = np.inf
-    for epoch in range(10):
+    adv_iter_steps = 10000
+
+    loss_list = []
+    for step in range(adv_iter_steps):
+        classifier.train()
+
         normal_x, normal_y = next(iter(train_loader))
-        normal_x, normal_y = normal_x.to(args.device), normal_y.to(args.device)
         adv_x, adv_y = next(iter(adv_loader))
+        batch_x = torch.cat([normal_x, adv_x], dim=0)
+        batch_y = torch.cat([normal_y, adv_y], dim=0)
+        x, y = batch_x.to(args.device), batch_y.to(args.device)
 
-        print("Epoch {}".format(epoch + 1))
-        loss_list = []
-        while normal_x is not None and adv_x is not None:
-            classifier.train()
-            batch_x = torch.cat([normal_x, adv_x], dim=0)
-            batch_y = torch.cat([normal_y, adv_y], dim=0)
+        assert normal_x is not None and adv_x is not None
 
-            x, y = batch_x.to(args.device), batch_y.to(args.device)
-            # forward
-            output = classifier(x)
+        # forward
+        output = classifier(x)
 
-            # backward
-            optimizer.zero_grad()
-            loss = F.cross_entropy(output, y)
-            loss.backward()
-            optimizer.step()
+        # backward
+        optimizer.zero_grad()
+        loss = F.cross_entropy(output, y)
+        loss.backward()
+        optimizer.step()
 
-            normal_x, normal_y = next(iter(train_loader))
-            adv_x, adv_y = next(iter(adv_loader))
-
-            loss_list.append(loss.item())
-
-        print('training loss: {:.4f}'.format(np.mean(loss_list)))
+        loss_list.append(loss.item())
+        if step % 1000 == 1:
+            print('Step: {}, mean training loss: {:.4f}'.format(step, np.mean(loss_list)))
+            loss_list = []
 
         # Evaluation on clean data
+        classifier.eval()
         clean_acc = inference(classifier, test_loader, args)
         print('Clean Acc. {:.4f}'.format(clean_acc))
 
