@@ -154,7 +154,7 @@ def adv_train(classifier, train_loader, test_loader, args):
         else:
             state = classifier.state_dict()
 
-        check_point = {'model_state': state, 'train_acc': train_accuracy, 'test_acc': test_accuracy}
+        check_point = {'model_state': state, 'clean_acc': clean_acc, 'adv_acc': adv_acc}
 
         torch.save(check_point, os.path.join(args.working_dir, save_name))
         print("Saving new checkpoint ...")
