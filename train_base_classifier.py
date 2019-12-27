@@ -73,7 +73,7 @@ def adv_train(classifier, train_loader, test_loader, args):
     adv_y_list = []
     for batch_id, (x, y) in enumerate(train_loader):
         # Note that images are scaled to [0., 1.0]
-        x, y = x.to(hps.device), y.to(hps.device)
+        x, y = x.to(args.device), y.to(args.device)
         # Generate adversarial examples
         adv_x = adversary.perturb(x, y)
         adv_x_list.append(adv_x)
