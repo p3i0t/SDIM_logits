@@ -74,6 +74,8 @@ def adv_train(classifier, train_loader, test_loader, args):
     for batch_id, (x, y) in enumerate(train_loader):
         # Note that images are scaled to [0., 1.0]
         x, y = x.to(args.device), y.to(args.device)
+        if batch_id % 10 == 1:
+            print('Generating Adv Examples: {}'.format(batch_id))
         # Generate adversarial examples
         adv_x = adversary.perturb(x, y)
         adv_x_list.append(adv_x)
@@ -88,14 +90,15 @@ def adv_train(classifier, train_loader, test_loader, args):
 
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
 
-    normal_x, normal_y = next(iter(train_loader))
-    adv_x, adv_y = next(iter(adv_loader))
-
     best_train_loss = np.inf
     for epoch in range(10):
+        normal_x, normal_y = next(iter(train_loader))
+        adv_x, adv_y = next(iter(adv_loader))
+
         print("Epoch {}".format(epoch + 1))
         loss_list = []
         while normal_batch is not None and adv_batch is not None:
+            classifier.train()
             batch_x = torch.cat([normal_x, adv_x], dim=0)
             batch_y = torch.cat([normal_y, adv_y], dim=0)
 
@@ -121,6 +124,7 @@ def adv_train(classifier, train_loader, test_loader, args):
         print('Clean Acc. {:.4f}'.format(clean_acc))
 
         # Evaluation on adv data
+        classifier.eval()
         correct = 0
         for batch_idx, (x, y) in enumerate(data_loader):
             x, y = x.to(args.device), y.to(args.device)
