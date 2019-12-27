@@ -72,7 +72,7 @@ def adv_train(classifier, train_loader, test_loader, args):
 
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
 
-    for epoch in range(10):
+    for epoch in range(2):
         # adversarial training
         adv_loss, adv_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer, attack=adversary)
         print('Epoch: {}, Adv Train loss: {:.4f}, acc: {:.4f}'.format(epoch + 1, adv_loss, adv_acc))
@@ -81,13 +81,11 @@ def adv_train(classifier, train_loader, test_loader, args):
         print('Clean training loss: {:.4f}, acc: {:.4f}.'.format(train_loss, train_acc))
 
         # Eval on normal
-        clean_loss, clean_acc = run_epoch(classifier, train_loader, args)
+        clean_loss, clean_acc = run_epoch(classifier, test_loader, args)
         print('Clean Test loss: {:.4f}, acc: {:.4f}'.format(clean_loss, clean_acc))
 
-        # Eval on adv
-        if epoch % 4 == 1:
-            adv_loss, adv_acc = run_epoch(classifier, train_loader, args, attack=adversary)
-            print('Adv Test loss: {:.4f}, acc: {:.4f}'.format(adv_loss, adv_acc))
+        adv_loss, adv_acc = run_epoch(classifier, test_loader, args, attack=adversary)
+        print('Adv Test loss: {:.4f}, acc: {:.4f}'.format(adv_loss, adv_acc))
 
         if args.classifier_name == 'resnext':
             save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
