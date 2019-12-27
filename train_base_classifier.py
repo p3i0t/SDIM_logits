@@ -62,7 +62,7 @@ def train_epoch(classifier, data_loader, optimizer, args):
 
 def adv_train(classifier, train_loader, test_loader, args):
     classifier.eval()
-    eps = 0.01
+    eps = 0.02
     args.targeted = False
     adversary = LinfPGDAttack(
         classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
@@ -91,7 +91,7 @@ def adv_train(classifier, train_loader, test_loader, args):
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
 
     best_train_loss = np.inf
-    adv_iter_steps = 10000
+    adv_iter_steps = 50000
 
     loss_list = []
     for step in range(adv_iter_steps):
@@ -115,7 +115,7 @@ def adv_train(classifier, train_loader, test_loader, args):
         optimizer.step()
 
         loss_list.append(loss.item())
-        if step % 1000 == 1:
+        if step % 5000 == 1:
             print('Step: {}, mean training loss: {:.4f}'.format(step, np.mean(loss_list)))
             loss_list = []
 
