@@ -62,11 +62,11 @@ def train_epoch(classifier, data_loader, optimizer, args):
 
 def adv_train(classifier, train_loader, test_loader, args):
     classifier.eval()
-    eps = 0.02
+    eps = 0.01
     args.targeted = False
     adversary = LinfPGDAttack(
         classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-        nb_iter=5, eps_iter=0.01, rand_init=True, clip_min=0.0,
+        nb_iter=40, eps_iter=0.01, rand_init=True, clip_min=0.0,
         clip_max=1.0, targeted=args.targeted)
 
     adv_x_list = []
@@ -121,43 +121,43 @@ def adv_train(classifier, train_loader, test_loader, args):
             print('Step: {}, mean training loss: {:.4f}'.format(step, np.mean(loss_list)))
             loss_list = []
 
-        # Evaluation on clean data
-        classifier.eval()
-        clean_acc = inference(classifier, test_loader, args)
-        print('Clean Acc. {:.4f}'.format(clean_acc))
+            # Evaluation on clean data
+            classifier.eval()
+            clean_acc = inference(classifier, test_loader, args)
+            print('Clean Acc. {:.4f}'.format(clean_acc))
 
-        # Evaluation on adv data
-        classifier.eval()
-        correct = 0
-        for batch_idx, (x, y) in enumerate(test_loader):
-            x, y = x.to(args.device), y.to(args.device)
+            # Evaluation on adv data
+            classifier.eval()
+            correct = 0
+            for batch_idx, (x, y) in enumerate(test_loader):
+                x, y = x.to(args.device), y.to(args.device)
 
-            adv_x = adversary.perturb(x, y)
-            # forward
-            with torch.no_grad():
-                output = classifier(adv_x)
+                adv_x = adversary.perturb(x, y)
+                # forward
+                with torch.no_grad():
+                    output = classifier(adv_x)
 
-            # accuracy
-            pred = output.max(1)[1]
-            correct += float(pred.eq(y).sum())
+                # accuracy
+                pred = output.max(1)[1]
+                correct += float(pred.eq(y).sum())
 
-        adv_acc = correct / len(test_loader.dataset)
-        print('Adv Acc. {:.4f}'.format(adv_acc))
+            adv_acc = correct / len(test_loader.dataset)
+            print('Adv Acc. {:.4f}'.format(adv_acc))
 
-        if args.classifier_name == 'resnext':
-            save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
-        elif args.classifier_name == 'resnet':
-            save_name = 'AT_ResNet18.pth'
+            if args.classifier_name == 'resnext':
+                save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
+            elif args.classifier_name == 'resnet':
+                save_name = 'AT_ResNet18.pth'
 
-        if use_cuda and args.n_gpu > 1:
-            state = classifier.module.state_dict()
-        else:
-            state = classifier.state_dict()
+            if use_cuda and args.n_gpu > 1:
+                state = classifier.module.state_dict()
+            else:
+                state = classifier.state_dict()
 
-        check_point = {'model_state': state, 'clean_acc': clean_acc, 'adv_acc': adv_acc}
+            check_point = {'model_state': state, 'clean_acc': clean_acc, 'adv_acc': adv_acc}
 
-        torch.save(check_point, os.path.join(args.working_dir, save_name))
-        print("Saving new checkpoint ...")
+            torch.save(check_point, os.path.join(args.working_dir, save_name))
+            print("Saving new checkpoint ...")
 
 
 def train(classifier, train_loader, test_loader, args):
