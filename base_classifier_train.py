@@ -121,8 +121,8 @@ def train(classifier, train_loader, test_loader, args):
         train_loss, train_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer, gaussian_aug=args.adv_training)
         print('Epoch: {}, training loss: {:.4f}, acc: {:.4f}.'.format(epoch + 1, train_loss, train_acc))
 
-        test_acc = run_epoch(classifier, test_loader, args)
-        print("Test acc: {:.4f}".format(test_acc))
+        test_loss, test_acc = run_epoch(classifier, test_loader, args)
+        print("Test loss: {:.4f}, acc: {:.4f}".format(test_loss, test_acc))
 
         if train_loss < best_train_loss:
             best_train_loss = train_loss
