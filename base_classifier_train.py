@@ -24,14 +24,14 @@ from advertorch.attacks import LinfPGDAttack
 name_dict = {'resnet': 'ResNet', 'resnext': 'ResNeXt'}
 
 
-def run_epoch(classifier, data_loader, args, optimizer=None, attack=None):
+def run_epoch(classifier, data_loader, args, optimizer=None, gaussian_aug=False):
     """
     Run one epoch.
     :param classifier: torch.nn.Module representing the classifier.
     :param data_loader: dataloader
     :param args:
     :param optimizer: if None, then inference; if optimizer given, training and optimizing.
-    :param attack: advertorch attack for adv examples generation. If None, do normal training or inference.
+    :param attack: Whether use gaussian noise augmentation to improve adversarial robustness.
     :return: mean of loss, mean of accuracy of this epoch.
     """
     if optimizer:
@@ -44,8 +44,11 @@ def run_epoch(classifier, data_loader, args, optimizer=None, attack=None):
     for batch_idx, (x, y) in enumerate(data_loader):
         x, y = x.to(args.device), y.to(args.device)
 
-        if attack is not None:
-            x_ = attack.perturb(x, y)
+        if gaussian_aug:
+            # Use 0.1 gaussian noise augmentation.
+            mean = torch.zeros_like(x)
+            std = 0.1 * torch.ones_like(x)
+            x_ = torch.clamp(x + torch.normal(mean, std).cuda(), min=0., max=1.)
         else:
             x_ = x
         output = classifier(x_)
@@ -62,49 +65,48 @@ def run_epoch(classifier, data_loader, args, optimizer=None, attack=None):
     return loss_meter.avg, acc_meter.avg
 
 
-def adv_train(classifier, train_loader, test_loader, args):
-    eps = 0.02
-    args.targeted = False
-    adversary = LinfPGDAttack(
-        classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-        nb_iter=30, eps_iter=0.01, rand_init=True, clip_min=0.0,
-        clip_max=1.0, targeted=args.targeted)
-
-    optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
-
-    for epoch in range(2):
-        # adversarial training
-        adv_loss, adv_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer, attack=adversary)
-        print('Epoch: {}, Adv Train loss: {:.4f}, acc: {:.4f}'.format(epoch + 1, adv_loss, adv_acc))
-
-        train_loss, train_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer)
-        print('Clean training loss: {:.4f}, acc: {:.4f}.'.format(train_loss, train_acc))
-
-        # Eval on normal
-        clean_loss, clean_acc = run_epoch(classifier, test_loader, args)
-        print('Clean Test loss: {:.4f}, acc: {:.4f}'.format(clean_loss, clean_acc))
-
-        adv_loss, adv_acc = run_epoch(classifier, test_loader, args, attack=adversary)
-        print('Adv Test loss: {:.4f}, acc: {:.4f}'.format(adv_loss, adv_acc))
-
-        if args.classifier_name == 'resnext':
-            save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
-        elif args.classifier_name == 'resnet':
-            save_name = 'AT_ResNet18.pth'
-
-        if use_cuda and args.n_gpu > 1:
-            state = classifier.module.state_dict()
-        else:
-            state = classifier.state_dict()
-
-        check_point = {'model_state': state, 'clean_acc': clean_acc, 'adv_acc': adv_acc}
-
-        torch.save(check_point, os.path.join(args.working_dir, save_name))
-        print("Saving new checkpoint ...")
+# def adv_train(classifier, train_loader, test_loader, args):
+#     eps = 0.02
+#     args.targeted = False
+#     adversary = LinfPGDAttack(
+#         classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
+#         nb_iter=30, eps_iter=0.01, rand_init=True, clip_min=0.0,
+#         clip_max=1.0, targeted=args.targeted)
+#
+#     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
+#
+#     for epoch in range(2):
+#         # adversarial training
+#         adv_loss, adv_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer, attack=adversary)
+#         print('Epoch: {}, Adv Train loss: {:.4f}, acc: {:.4f}'.format(epoch + 1, adv_loss, adv_acc))
+#
+#         train_loss, train_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer)
+#         print('Clean training loss: {:.4f}, acc: {:.4f}.'.format(train_loss, train_acc))
+#
+#         # Eval on normal
+#         clean_loss, clean_acc = run_epoch(classifier, test_loader, args)
+#         print('Clean Test loss: {:.4f}, acc: {:.4f}'.format(clean_loss, clean_acc))
+#
+#         adv_loss, adv_acc = run_epoch(classifier, test_loader, args, attack=adversary)
+#         print('Adv Test loss: {:.4f}, acc: {:.4f}'.format(adv_loss, adv_acc))
+#
+#         if args.classifier_name == 'resnext':
+#             save_name = 'AT_ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
+#         elif args.classifier_name == 'resnet':
+#             save_name = 'AT_ResNet18.pth'
+#
+#         if use_cuda and args.n_gpu > 1:
+#             state = classifier.module.state_dict()
+#         else:
+#             state = classifier.state_dict()
+#
+#         check_point = {'model_state': state, 'clean_acc': clean_acc, 'adv_acc': adv_acc}
+#
+#         torch.save(check_point, os.path.join(args.working_dir, save_name))
+#         print("Saving new checkpoint ...")
 
 
 def train(classifier, train_loader, test_loader, args):
-
     optimizer = torch.optim.SGD(classifier.parameters(), lr=args.learning_rate, momentum=args.momentum,
                                 weight_decay=args.decay, nesterov=True)
 
@@ -116,7 +118,7 @@ def train(classifier, train_loader, test_loader, args):
             for param_group in optimizer.param_groups:
                 param_group['lr'] = args.learning_rate
 
-        train_loss, train_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer)
+        train_loss, train_acc = run_epoch(classifier, train_loader, args, optimizer=optimizer, gaussian_aug=args.adv_training)
         print('Epoch: {}, training loss: {:.4f}, acc: {:.4f}.'.format(epoch + 1, train_loss, train_acc))
 
         test_acc = run_epoch(classifier, test_loader, args)
@@ -129,6 +131,9 @@ def train(classifier, train_loader, test_loader, args):
                 save_name = 'ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
             elif args.classifier_name == 'resnet':
                 save_name = 'ResNet18.pth'
+
+            if args.adv_training:
+                save_name = 'AT_' + save_name
 
             if use_cuda and args.n_gpu > 1:
                 state = classifier.module.state_dict()
@@ -220,17 +225,13 @@ if __name__ == '__main__':
             save_name = 'ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
         elif args.classifier_name == 'resnet':
             save_name = 'ResNet18.pth'
+
+        if args.adv_training:
+            save_name = 'AT_' + save_name
+
         classifier.load_state_dict(torch.load(os.path.join(args.working_dir, save_name))['model_state'])
         loss, acc = run_epoch(classifier, test_loader, args)
         print('Test loss: {:.4f}, acc: {:.4f}'.format(loss, acc))
-    elif args.adv_training:
-        # Perform adversarial training on pre-trained classifier.
-        if args.classifier_name == 'resnext':
-            save_name = 'ResNeXt{}_{}x{}d.pth'.format(args.depth, args.cardinality, args.base_width)
-        elif args.classifier_name == 'resnet':
-            save_name = 'ResNet18.pth'
-        classifier.load_state_dict(torch.load(os.path.join(args.working_dir, save_name))['model_state'])
-        adv_train(classifier, train_loader, test_loader, args)
     else:
         train(classifier, train_loader, test_loader, args)
 
