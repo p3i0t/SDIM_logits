@@ -37,8 +37,11 @@ def load_pretrained_sdim(hps):
                 mi_units=hps.mi_units,
                 ).to(hps.device)
 
-    name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
-    checkpoint_path = os.path.join(hps.log_dir, name)
+    save_name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
+    if hps.adv_training:
+        save_name = 'AT_' + save_name
+
+    checkpoint_path = os.path.join(hps.log_dir, save_name)
     sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['model_state'])
 
     return sdim
@@ -90,11 +93,11 @@ def attack_run_rejection_policy(sdim, hps):
     thresholds2 = torch.tensor(threshold_list2).to(hps.device)
 
     if hps.attack == 'pgd':
-        eps = 0.05
+        eps = 8 / 255
         hps.targeted = False
         adversary = LinfPGDAttack(
             sdim.disc_classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-            nb_iter=100, eps_iter=0.01, rand_init=True, clip_min=0.0,
+            nb_iter=50, eps_iter=0.01, rand_init=True, clip_min=0.0,
             clip_max=1.0, targeted=hps.targeted)
     elif hps.attack == 'cw':
         confidence = 0
@@ -103,7 +106,7 @@ def attack_run_rejection_policy(sdim, hps):
                                           confidence=confidence,
                                           clip_min=0.,
                                           clip_max=1.,
-                                          max_iterations=100
+                                          max_iterations=50
                                           )
     else:
         print('attack {} not available.'.format(hps.attack))
@@ -188,6 +191,8 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", action='store_true', help="Verbose mode")
     parser.add_argument("--no_rejection", action="store_true",
                         help="Used in inference mode with rejection")
+    parser.add_argument("--adv_training", action="store_true",
+                        help="Use pre-trained classifier with adversarial training")
     parser.add_argument("--log_dir", type=str,
                         default='./logs', help="Location to save logs")
 

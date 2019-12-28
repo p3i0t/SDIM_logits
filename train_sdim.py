@@ -34,6 +34,9 @@ def load_pretrained_model(hps):
     elif hps.classifier_name == 'resnet':
         save_name = 'ResNet18.pth'
 
+    if hps.adv_training:
+        save_name = 'AT_' + save_name
+
     checkpoint = torch.load(os.path.join(hps.working_dir, save_name), map_location=lambda storage, loc: storage)
     print('Load pre-trained checkpoint: {}'.format(save_name))
 
@@ -70,6 +73,11 @@ def train(sdim, optimizer, hps):
         for batch_id, (x, y) in enumerate(train_loader):
             x = x.to(hps.device)
             y = y.to(hps.device)
+
+            if hps.adv_training:
+                mean = torch.zeros_like(x)
+                std = 0.1 * torch.ones_like(x)
+                x = torch.clamp(x + torch.normal(mean, std).to(hps.device), min=0., max=1.)
 
             optimizer.zero_grad()
 
@@ -129,8 +137,12 @@ def train(sdim, optimizer, hps):
         results_dict['test_nll'].append(nll_meter)
         results_dict['test_margin'].append(margin_meter)
 
-    name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
-    checkpoint_path = os.path.join(hps.log_dir, name)
+    save_name = 'SDIM_{}_{}.pth'.format(hps.classifier_name, hps.problem)
+
+    if hps.adv_training:
+        save_name = 'AT_' + save_name
+
+    checkpoint_path = os.path.join(hps.log_dir, save_name)
     checkpoint = {'results': results_dict, 'model_state': state}
 
     torch.save(checkpoint, checkpoint_path)
@@ -164,7 +176,7 @@ def inference(sdim, hps):
 
         global_acc_list.append(acc_meter.avg)
         print('Class label {}, Test accuracy: {:.4f}'.format(label_id, acc_meter.avg))
-    print('Test accracy: {:.4f}'.format(np.mean(global_acc_list)))
+    print('Test accuracy: {:.4f}'.format(np.mean(global_acc_list)))
 
 
 if __name__ == '__main__':
@@ -177,8 +189,8 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", action='store_true', help="Verbose mode")
     parser.add_argument("--inference", action="store_true",
                         help="Used in inference mode")
-    parser.add_argument("--rejection_inference", action="store_true",
-                        help="Used in inference mode with rejection")
+    parser.add_argument("--adv_training", action="store_true",
+                        help="Use pre-trained classifier with adversarial training")
     parser.add_argument("--log_dir", type=str,
                         default='./logs', help="Location to save logs")
 

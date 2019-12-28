@@ -48,7 +48,7 @@ def run_epoch(classifier, data_loader, args, optimizer=None, gaussian_aug=False)
             # Use 0.1 gaussian noise augmentation.
             mean = torch.zeros_like(x)
             std = 0.1 * torch.ones_like(x)
-            x_ = torch.clamp(x + torch.normal(mean, std).cuda(), min=0., max=1.)
+            x_ = torch.clamp(x + torch.normal(mean, std).to(args.device), min=0., max=1.)
         else:
             x_ = x
         output = classifier(x_)
