@@ -15,7 +15,7 @@ from advertorch.attacks import LinfPGDAttack, CarliniWagnerL2Attack
 
 
 from models import ResNeXt, ResNet18
-from sdim_ce import SDIM
+from sdim import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
 from torchvision.utils import save_image
 

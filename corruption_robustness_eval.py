@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
 
 from models import ResNeXt, ResNet18
-from sdim_ce import SDIM
+from sdim import SDIM
 from utils import cal_parameters, get_dataset, AverageMeter
 
 
