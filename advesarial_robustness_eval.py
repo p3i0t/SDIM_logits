@@ -85,22 +85,16 @@ def attack_run_rejection_policy(sdim, hps):
         threshold_list2.append(thresh2)  # class mean as threshold
         print('1st & 2nd percentile thresholds: {:.3f}, {:.3f}'.format(thresh1, thresh2))
 
-    attack_path = os.path.join(hps.attack_dir, hps.attack)
-    if not os.path.exists(attack_path):
-        os.mkdir(attack_path)
-
     thresholds1 = torch.tensor(threshold_list1).to(hps.device)
     thresholds2 = torch.tensor(threshold_list2).to(hps.device)
 
-    if hps.attack == 'pgd':
-        eps_iter = hps.pgd_eps / 25
-        hps.targeted = False
-        adversary = LinfPGDAttack(
-            sdim.disc_classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=hps.pgd_eps,
-            nb_iter=50, eps_iter=eps_iter, rand_init=True, clip_min=0.0,
-            clip_max=1.0, targeted=hps.targeted)
-    else:
-        print('attack {} not available.'.format(hps.attack))
+    eps = hps.pixel_eps / 255
+    eps_iter = eps / 25
+    hps.targeted = False
+    adversary = LinfPGDAttack(
+        sdim.disc_classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
+        nb_iter=50, eps_iter=eps_iter, rand_init=True, clip_min=0.0,
+        clip_max=1.0, targeted=hps.targeted)
 
     # Evaluation
     n_correct_adv1 = 0   # total number of successfully classified adversarial examples
@@ -230,8 +224,8 @@ if __name__ == '__main__':
                         default=10, help="size of the global representation from encoder")
     parser.add_argument("--classifier_name", type=str, default='resnet',
                         help="classifier name: resnet|densenet")
-    parser.add_argument("--pgd_eps", type=float, default=2/255,
-                        help="norm bound of pgd attack.")
+    parser.add_argument("--pixel_eps", type=int, default=2,
+                        help="norm bound of pgd attack, i.e. number of pixels.")
 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
