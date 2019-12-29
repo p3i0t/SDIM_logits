@@ -154,8 +154,7 @@ def attack_run_rejection_policy(sdim, hps):
     wrong_rate1 = n_wrong_adv1 / n_eval
     wrong_rate2 = n_wrong_adv2 / n_eval
 
-    pixel_eps = int(hps.pgd_eps * 255)
-    name = 'adv_results_{}_eps{}.pth'.format(hps.classifier_name, pixel_eps)
+    name = 'adv_results_{}_eps{}.pth'.format(hps.classifier_name, hps.pixel_eps)
 
     results_dict = {'reject_rate1': reject_rate1, 'reject_rate2': reject_rate2,
                     'correct_rate1': correct_rate1, 'correct_rate2': correct_rate2,
