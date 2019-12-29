@@ -93,21 +93,12 @@ def attack_run_rejection_policy(sdim, hps):
     thresholds2 = torch.tensor(threshold_list2).to(hps.device)
 
     if hps.attack == 'pgd':
-        eps = 4 / 255
+        eps_iter = hps.pgd_eps / 25
         hps.targeted = False
         adversary = LinfPGDAttack(
-            sdim.disc_classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-            nb_iter=30, eps_iter=0.01, rand_init=True, clip_min=0.0,
+            sdim.disc_classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=hps.pgd_eps,
+            nb_iter=50, eps_iter=eps_iter, rand_init=True, clip_min=0.0,
             clip_max=1.0, targeted=hps.targeted)
-    elif hps.attack == 'cw':
-        confidence = 0
-        adversary = CarliniWagnerL2Attack(sdim.disc_classifier,
-                                          num_classes=10,
-                                          confidence=confidence,
-                                          clip_min=0.,
-                                          clip_max=1.,
-                                          max_iterations=50
-                                          )
     else:
         print('attack {} not available.'.format(hps.attack))
 
@@ -127,13 +118,13 @@ def attack_run_rejection_policy(sdim, hps):
         # Note that images are scaled to [0., 1.0]
         x, y = x.to(hps.device), y.to(hps.device)
 
-        # # Only evaluate on the correct classified samples by clean classifier.
-        # with torch.no_grad():
-        #     output = sdim.disc_classifier(x)
-        # correct_idx = output.argmax(dim=1) == y
-        # x, y = x[correct_idx], y[correct_idx]
-        # n_eval += correct_idx.sum().item()
-        n_eval += x.size()[0]
+        # Only evaluate on the correct classified samples by clean classifier.
+        with torch.no_grad():
+            output = sdim.disc_classifier(x)
+        correct_idx = output.argmax(dim=1) == y
+        x, y = x[correct_idx], y[correct_idx]
+        n_eval += correct_idx.sum().item()
+        # n_eval += x.size()[0]
 
         # save_image(x, 'clean_x.png')
         # Generate adversarial examples
@@ -169,7 +160,8 @@ def attack_run_rejection_policy(sdim, hps):
     wrong_rate1 = n_wrong_adv1 / n_eval
     wrong_rate2 = n_wrong_adv2 / n_eval
 
-    name = 'adv_results_{}_{}.pth'.format(hps.classifier_name, hps.attack)
+    pixel_eps = int(hps.pgd_eps * 255)
+    name = 'adv_results_{}_eps{}.pth'.format(hps.classifier_name, pixel_eps)
 
     results_dict = {'reject_rate1': reject_rate1, 'reject_rate2': reject_rate2,
                     'correct_rate1': correct_rate1, 'correct_rate2': correct_rate2,
@@ -238,8 +230,9 @@ if __name__ == '__main__':
                         default=10, help="size of the global representation from encoder")
     parser.add_argument("--classifier_name", type=str, default='resnet',
                         help="classifier name: resnet|densenet")
-    parser.add_argument("--attack", type=str, default='cw',
-                        help="type of adversarial attack")
+    parser.add_argument("--pgd_eps", type=float, default=2/255,
+                        help="norm bound of pgd attack.")
+
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
 
