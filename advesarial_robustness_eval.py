@@ -89,11 +89,11 @@ def attack_run_rejection_policy(sdim, hps):
     thresholds2 = torch.tensor(threshold_list2).to(hps.device)
 
     eps = hps.pixel_eps / 255
-    eps_iter = eps / 25
+    eps_iter = 0.01
     hps.targeted = False
     adversary = LinfPGDAttack(
         sdim.disc_classifier, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-        nb_iter=50, eps_iter=eps_iter, rand_init=True, clip_min=0.0,
+        nb_iter=40, eps_iter=eps_iter, rand_init=True, clip_min=0.0,
         clip_max=1.0, targeted=hps.targeted)
 
     # Evaluation
