@@ -21,24 +21,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision.models import resnet18, resnet34, resnet50
-
+from models import resnet18, resnet34, resnet50
 from utils import cal_parameters, get_dataset, AverageMeter
 
 
 logger = logging.getLogger(__name__)
 
 
-def get_model(name='resnet18', n_classes=10, pretrained=False):
+def get_model(name='resnet18', n_classes=10):
     """ get proper model from torchvision models. """
-
     model_list = ['resnet18', 'resnet34', 'resnet50']
     assert name in model_list, '{} not available, choose from {}'.format(name, model_list)
 
-    classifier = eval(name)(pretrained=pretrained)
-
-    # change output size
-    if classifier.fc.out_features != n_classes:
-        classifier.fc = nn.Linear(classifier.fc.in_features, n_classes)
+    classifier = eval(name)(n_classes=n_classes)
     return classifier
 
 
@@ -131,7 +126,7 @@ def run(args: DictConfig) -> None:
 
     if args.inference:
         save_name = '{}.pth'.format(args.classifier_name)
-        classifier.load_state_dict(torch.load(save_name)['model_state'])
+        classifier.load_state_dict(torch.load(save_name))
         loss, acc = run_epoch(classifier, test_loader, args)
         logger.info('Inference loss: {:.4f}, acc: {:.4f}'.format(loss, acc))
     else:

@@ -7,14 +7,11 @@ PreActBlock and PreActBottleneck module is from the later paper:
     Identity Mappings in Deep Residual Networks. arXiv:1603.05027
 Original code is from https://github.com/kuangliu/pytorch-cifar/blob/master/models/resnet.py
 '''
-import os
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from torch.autograd import Variable
-from torch.nn.parameter import Parameter
+__all__ = ['ResNet18', 'ResNet34', 'ResNet50', 'ResNet101', 'ResNet152']
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -158,80 +155,39 @@ class ResNet(nn.Module):
         out = out.view(out.size(0), -1)
         y = self.linear(out)
         return y
-    
-    # function to extact the multiple features
-    def feature_list(self, x):
-        out_list = []
-        out = F.relu(self.bn1(self.conv1(x)))
-        out_list.append(out)
-        out = self.layer1(out)
-        out_list.append(out)
-        out = self.layer2(out)
-        out_list.append(out)
-        out = self.layer3(out)
-        out_list.append(out)
-        out = self.layer4(out)
-        out_list.append(out)
-        out = F.avg_pool2d(out, 4)
-        out = out.view(out.size(0), -1)
-        y = self.linear(out)
-        return y, out_list
-    
-    # function to extact a specific feature
-    def intermediate_forward(self, x, layer_index):
-        out = F.relu(self.bn1(self.conv1(x)))
-        if layer_index == 1:
-            out = self.layer1(out)
-        elif layer_index == 2:
-            out = self.layer1(out)
-            out = self.layer2(out)
-        elif layer_index == 3:
-            out = self.layer1(out)
-            out = self.layer2(out)
-            out = self.layer3(out)
-        elif layer_index == 4:
-            out = self.layer1(out)
-            out = self.layer2(out)
-            out = self.layer3(out)
-            out = self.layer4(out)               
-        return out
-
-    # function to extact the penultimate features
-    def penultimate_forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        penultimate = self.layer4(out)
-        out = F.avg_pool2d(penultimate, 4)
-        out = out.view(out.size(0), -1)
-        y = self.linear(out)
-        return y, penultimate
 
 
-def ResNet18(n_classes):
-    return ResNet(PreActBlock, [2,2,2,2], num_classes=n_classes)
+
+def resnet18(n_classes=10):
+    return ResNet(BasicBlock, [2, 2, 2, 2], n_classes=n_classes)
 
 
-def ResNet34(n_classes):
-    return ResNet(BasicBlock, [3,4,6,3], num_classes=n_classes)
+def resnet34(n_classes=10):
+    return ResNet(BasicBlock, [3, 4, 6, 3], n_classes=n_classes)
 
 
-def ResNet50():
-    return ResNet(Bottleneck, [3,4,6,3])
+def resnet50(n_classes=10):
+    return ResNet(Bottleneck, [3, 4, 6, 3], n_classes=n_classes)
 
 
-def ResNet101():
-    return ResNet(Bottleneck, [3,4,23,3])
+def resnet101(n_classes=10):
+    return ResNet(Bottleneck, [3, 4, 23, 3], n_classes=n_classes)
 
 
-def ResNet152():
-    return ResNet(Bottleneck, [3,8,36,3])
+def resnet152(n_classes=10):
+    return ResNet(Bottleneck, [3, 8, 36, 3], n_classes=n_classes)
 
 
-def test():
-    net = ResNet18()
-    y = net(Variable(torch.randn(1,3,32,32)))
-    print(y.size())
+def model_test():
+    x_32 = torch.randn(1, 3, 32, 32)
+    x_64 = torch.randn(1, 3, 32*2, 32*2)
+    n_classes = 10
+    for resnet in __all__:
+        m = eval(resnet)(n_classes=n_classes)
+        assert m(x_32).size(-1) == n_classes and m(x_64).size(-1) == n_classes,\
+            '{} output size not correct.'.format(resnet)
+    print('All model testings passed.')
 
-# test()
+
+if __name__ == '__main__':
+    model_test()
