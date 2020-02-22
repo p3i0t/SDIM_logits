@@ -73,7 +73,7 @@ class MLP(nn.Module):
 
 
 class SDIM(torch.nn.Module):
-    def __init__(self, disc_classifier, rep_size=64, n_classes=10, mi_units=64, margin=10):
+    def __init__(self, disc_classifier, rep_size=64, n_classes=10, mi_units=64, margin=5):
         super().__init__()
         self.disc_classifier = disc_classifier #.half()  # Use half-precision for saving memory and time.
         self.disc_classifier.requires_grad_(requires_grad=False)  # shut down grad on pre-trained classifier.

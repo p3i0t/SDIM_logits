@@ -181,7 +181,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_gpu', type=int, default=1, help='0 = CPU.')
     parser.add_argument('--prefetch', type=int, default=2, help='Pre-fetching threads.')
 
-    parser.add_argument('--classifier_name', type=str, default='resnext', help='resnext or resnet')
+    parser.add_argument('--classifier_name', type=str, default='resnet', help='resnext or resnet')
 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')

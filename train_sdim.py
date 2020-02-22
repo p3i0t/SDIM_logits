@@ -254,6 +254,7 @@ if __name__ == '__main__':
                 rep_size=hps.rep_size,
                 mi_units=hps.mi_units,
                 ).to(hps.device)
+    print(sdim)
     optimizer = Adam(sdim.parameters(), lr=hps.lr)
 
     print('==>  # SDIM parameters: {}.'.format(cal_parameters(sdim)))
