@@ -1,0 +1,44 @@
+hydra:
+  job_logging:
+#    formatters:
+#      simple:
+#        format: '[]'
+    root:
+      handlers: [file, console]  # logging to file only.
+  run:
+    #dir: logs/${dataset}
+    dir: logs/${model_type}/${dataset}
+
+model_type: base
+dataset: cifar10
+
+data_dir: data
+
+classifier_name: resnet18 # or resnet34, resnet50
+
+cifar10:
+  n_classes: 10
+
+cifar100:
+  n_classes: 100
+
+tiny_imagenet:
+  n_classes: 200
+
+inference: False  # False for training, True for inference.
+
+# training parameters
+epochs: 300
+n_batch_train: 128
+n_batch_test: 200
+
+optimizer: sgd
+learning_rate: 0.1
+momentum: 0.9
+decay: 0.0005
+schedule: [150, 225]  # Decrease learning rate at these epochs.
+gamma: 0.1  # LR is multiplied by gamma on schedule.
+
+seed: 1234
+n_gpu: 1
+device: cuda
