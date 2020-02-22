@@ -97,7 +97,7 @@ def train(classifier, train_loader, test_loader, args):
             save_name = '{}.pth'.format(args.classifier_name)
 
             # if use cuda and n_gpu > 1
-            if next(classifier_name.parameters()).is_cuda and args.n_gpu > 1:
+            if next(classifier.parameters()).is_cuda and args.n_gpu > 1:
                 state = classifier.module.state_dict()
             else:
                 state = classifier.state_dict()
