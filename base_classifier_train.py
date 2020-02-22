@@ -114,7 +114,7 @@ def run(args: DictConfig) -> None:
     n_classes = args.get(args.dataset).n_classes
     pretrained = True if args.dataset == 'tiny_imagenet' else False
 
-    classifier = get_model(name=args.classifier_name, n_classes=n_classes, pretrained=pretrained)
+    classifier = get_model(name=args.classifier_name, n_classes=n_classes, pretrained=pretrained).to(device)
 
     if device == 'cuda' and args.n_gpu > 1:
         classifier = torch.nn.DataParallel(classifier, device_ids=list(range(args.n_gpu)))
