@@ -96,12 +96,13 @@ def train(classifier, train_loader, test_loader, args):
             best_train_loss = train_loss
             save_name = '{}.pth'.format(args.classifier_name)
 
-            if use_cuda and args.n_gpu > 1:
+            # if use cuda and n_gpu > 1
+            if next(classifier_name.parameters()).is_cuda and args.n_gpu > 1:
                 state = classifier.module.state_dict()
             else:
                 state = classifier.state_dict()
 
-            torch.save(state, os.path.join(args.working_dir, save_name))
+            torch.save(state, save_name)
             logger.info("==> New optimal training loss & saving checkpoint ...")
 
 
