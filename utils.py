@@ -33,55 +33,37 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
     :return: pytorch dataset.
     """
 
+    transform_3d_crop_flip = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        #transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
+    ])
+
+    transform_3d = transforms.Compose([
+        transforms.ToTensor(),
+        #transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
+    ])
+
+    if train:
+        # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
+        transform = transform_3d if crop_flip is False else transform_3d_crop_flip
+    else:
+        transform = transform_3d
+
     if data_name == 'cifar10':
-        transform_3d_crop_flip = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            #transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
-        ])
-
-        transform_3d = transforms.Compose([
-            transforms.ToTensor(),
-            #transforms.Normalize((125.3/255, 123/255, 113.9/255), (63/255, 62.1/255, 66.7/255))
-        ])
-
-        if train:
-            # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
-            transform = transform_3d if crop_flip is False else transform_3d_crop_flip
-        else:
-            transform = transform_3d
-
         dataset = datasets.CIFAR10(data_dir, train=train, download=True, transform=transform)
+    elif data_name == 'cifar100':
+        dataset = datasets.CIFAR100(data_dir, train=train, download=True, transform=transform)
     elif data_name == 'svhn':
-
-        transform_3d_crop_flip = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-
-        transform_3d = transforms.Compose([
-            transforms.ToTensor(),
-            # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-
-        if train:
-            # when train is True, we use transform_1d_crop_flip by default unless crop_flip is set to False
-            transform = transform_3d if crop_flip is False else transform_3d_crop_flip
-            split = 'train'
-        else:
-            transform = transform_3d
-            split = 'test'
-
+        split = 'train' if train else 'test'
         dataset = datasets.SVHN(data_dir, split=split, download=False, transform=transform)
     else:
         print('dataset {} is not available'.format(data_name))
 
     if label_id is not None:
         # select samples with particular label
-        if data_name == 'cifar10':  #isinstance(dataset.targets, list):
+        if data_name == 'cifar10' or data_name == 'cifar100':  #isinstance(dataset.targets, list):
             # for cifar10
             targets = np.array(dataset.targets)
             idx = targets == label_id
@@ -91,13 +73,6 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
             idx = dataset.labels == label_id
             dataset.labels = dataset.labels[idx]
             dataset.data = dataset.data[idx]
-        else:
-            # for MNIST and FashionMNIST
-            targets = dataset.targets
-            data = dataset.data
-            idx = targets == label_id
-            dataset.targets = targets[idx]
-            dataset.data = data[idx]
     return dataset
 
 
@@ -107,18 +82,23 @@ def cal_parameters(model):
     :param model: torch.nn.Module
     :return: int, number of parameters.
     """
-    cnt = 0
-    for para in model.parameters():
-        cnt += para.numel()
-    return cnt
+    return sum([para.numel() for para in model.parameters()])
+
+
+def dataloader_test():
+    for data_name in ['cifar10', 'cifar100', 'svhn']:
+        print('Testing on {}'.format(data_name))
+        for label_id in range(10):
+            dataset = get_dataset(data_name=data_name, train=True, label_id=label_id, crop_flip=False)
+            train_loader = DataLoader(dataset=dataset, batch_size=10, shuffle=False)
+
+            for batch_id, (x, y) in enumerate(train_loader):
+                assert (y == label_id).all(), 'label verification failed. dataset: {}, label_id: {}'.format(data_name, label_id)
+                break
+        print('Testing on {} passed !!!'.format(data_name))
+
+    print('All dataloader testings passed !!!')
 
 
 if __name__ == '__main__':
-    dataset = get_dataset(data_name='cifar10', train=True, label_id=1, crop_flip=False)
-    train_loader = DataLoader(dataset=dataset, batch_size=10, shuffle=False)
-    # dataset = get_dataset(label_id=1)
-    # train_loader = DataLoader(dataset=dataset, batch_size=10, shuffle=True)
-    for batch_id, (x, y) in enumerate(train_loader):
-        print(x.size())
-        print(y)
-        break
+    dataloader_test()
