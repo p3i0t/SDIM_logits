@@ -20,7 +20,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from torchvision.models import resnet18, resnet34, resnet50
+# from torchvision.models import resnet18, resnet34, resnet50
 from models import resnet18, resnet34, resnet50
 from utils import cal_parameters, get_dataset, AverageMeter
 
@@ -110,7 +110,7 @@ def run(args: DictConfig) -> None:
     n_classes = args.get(args.dataset).n_classes
     pretrained = True if args.dataset == 'tiny_imagenet' else False
 
-    classifier = get_model(name=args.classifier_name, n_classes=n_classes, pretrained=pretrained).to(device)
+    classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(device)
 
     if device == 'cuda' and args.n_gpu > 1:
         classifier = torch.nn.DataParallel(classifier, device_ids=list(range(args.n_gpu)))
