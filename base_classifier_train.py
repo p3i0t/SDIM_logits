@@ -126,7 +126,7 @@ def run(args: DictConfig) -> None:
 
     if args.inference:
         save_name = '{}.pth'.format(args.classifier_name)
-        classifier.load_state_dict(torch.load(save_name))
+        classifier.load_state_dict(torch.load(save_name, map_location=lambda storage, loc: storage))
         loss, acc = run_epoch(classifier, test_loader, args)
         logger.info('Inference loss: {:.4f}, acc: {:.4f}'.format(loss, acc))
     else:

@@ -1,6 +1,7 @@
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import numpy as np
+import os 
 
 
 class AverageMeter(object):
@@ -73,6 +74,12 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
             idx = targets == label_id
             dataset.targets = list(targets[idx])
             dataset.data = dataset.data[idx]
+        if data_name == 'tiny_imagenet':
+            targets = np.array(dataset.targets)
+            idx = targets == label_id
+            dataset.targets = list(targets[idx])
+            dataset.samples = list(np.array(dataset.samples)[idx])
+            dataset.imgs = list(np.array(dataset.imgs)[idx])
         elif data_name == 'svhn':
             idx = dataset.labels == label_id
             dataset.labels = dataset.labels[idx]
