@@ -31,7 +31,7 @@ def get_model(name='resnet18', n_classes=10):
 def load_pretrained_model(hps):
     classifier = get_model(name=hps.classifier_name, n_classes=hps.n_classes).to(hps.device)
 
-    save_name = '{}.pth'.format(args.classifier_name)
+    save_name = '{}.pth'.format(hps.classifier_name)
     base_dir = 'logs/base/{}'.format(hps.problem)
     classifier.load_state_dict(torch.load(os.path.join(base_dir, save_name)))
     return classifier
@@ -240,8 +240,8 @@ if __name__ == '__main__':
                         default=64, help="output size of 1x1 conv network for mutual information estimation")
     parser.add_argument("--rep_size", type=int,
                         default=10, help="size of the global representation from encoder")
-    parser.add_argument("--classifier_name", type=str, default='resnet',
-                        help="classifier name: resnet | resnext")
+    parser.add_argument("--classifier_name", type=str, default='resnet18',
+                        help="classifier name: resnet18, resnet34, resnet50")
 
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
@@ -254,11 +254,6 @@ if __name__ == '__main__':
 
     torch.manual_seed(hps.seed)
     hps.device = torch.device("cuda" if use_cuda else "cpu")
-
-    # # Create log dir
-    # hps.working_dir = os.path.join(hps.log_dir, hps.problem)
-    # if not os.path.exists(hps.working_dir):
-    #     os.mkdir(hps.working_dir)
 
     classifier = load_pretrained_model(hps).to(hps.device)
 
