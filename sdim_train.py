@@ -148,12 +148,12 @@ def train(sdim, optimizer, hps):
         results_dict['test_margin'].append(margin_meter)
 
     sdim_dir = 'logs/sdim/{}'.format(hps.problem)
-    if not os.path.exists(hps.sdim_dir):
-        os.mkdir(hps.sdim_dir)
+    if not os.path.exists(sdim_dir):
+        os.mkdir(sdim_dir)
 
     save_name = 'SDIM_{}.pth'.format(hps.classifier_name)
 
-    checkpoint_path = os.path.join(hps.sdim_dir, save_name)
+    checkpoint_path = os.path.join(sdim_dir, save_name)
     checkpoint = {'results': results_dict, 'model_state': state}
 
     torch.save(checkpoint, checkpoint_path)
@@ -169,7 +169,7 @@ def inference(sdim, hps):
     sdim_dir = 'logs/sdim/{}'.format(hps.problem)
     save_name = 'SDIM_{}.pth'.format(hps.classifier_name)
 
-    checkpoint_path = os.path.join(hps.sdim_dir, save_name)
+    checkpoint_path = os.path.join(sdim_dir, save_name)
 
     sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['model_state'])
 
