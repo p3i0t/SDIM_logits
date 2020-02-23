@@ -58,6 +58,10 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
     elif data_name == 'svhn':
         split = 'train' if train else 'test'
         dataset = datasets.SVHN(data_dir, split=split, download=False, transform=transform)
+    elif data_name == 'tiny_imagenet':
+        split = 'train' if train else 'test'
+        transform = transform_3d  # no special transform
+        dataset = datasets.ImageFolder(os.path.join('tiny_imagenet', split), transform=transform)
     else:
         print('dataset {} is not available'.format(data_name))
 
