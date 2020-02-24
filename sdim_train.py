@@ -88,10 +88,10 @@ def train(sdim, optimizer, args):
     np.random.seed(args.seed)
 
     data_dir = hydra.utils.to_absolute_path(args.data_dir)
-    dataset = get_dataset(data_name=args.dataset, train=True, crop_flip=True)
+    dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=True, crop_flip=True)
     train_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_train, shuffle=True)
 
-    dataset = get_dataset(data_name=args.dataset, train=False, crop_flip=False)
+    dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=False, crop_flip=False)
     test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False)
 
     results_dict = dict({'train_loss': [], 'train_MI': [], 'train_nll': [], 'train_margin': [], 'train_acc': [],
