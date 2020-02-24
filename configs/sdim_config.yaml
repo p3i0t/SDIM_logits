@@ -6,16 +6,16 @@ hydra:
     #dir: logs/${dataset}
     dir: logs/${model_type}/${dataset}
 
-model_type: base
+model_type: sdim
 dataset: cifar10
 
 data_dir: data
 
 # model parameters
 classifier_name: resnet18  # base classifier
-mi_units: 256
+mi_units: 64
 rep_size: 10
-margin: 2
+margin: 3
 
 cifar10:
   n_classes: 10
@@ -29,7 +29,7 @@ tiny_imagenet:
 inference: False  # False for training, True for inference.
 
 # training parameters
-epochs: 100
+epochs: 50
 n_batch_train: 128
 n_batch_test: 200
 optimizer: adam
