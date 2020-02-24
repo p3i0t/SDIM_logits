@@ -33,10 +33,11 @@ def get_model(name='resnet18', n_classes=10):
 def load_pretrained_model(args):
     """ load pretrained base discriminative classifier."""
     n_classes = args.get(args.dataset).n_classes
-    classifier = get_model(name=args.classifier_name, n_classes=args.n_classes).to(args.device)
+    classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
     save_name = '{}.pth'.format(args.classifier_name)
     base_dir = 'logs/base/{}'.format(args.dataset)
-    classifier.load_state_dict(torch.load(os.path.join(base_dir, save_name)))
+    path = hydra.utils.to_absolute_path(base_dir)
+    classifier.load_state_dict(torch.load(os.path.join(path, save_name)))
     return classifier
 
 
