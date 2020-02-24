@@ -91,11 +91,12 @@ def train(classifier, train_loader, test_loader, args):
             best_train_loss = train_loss
             save_name = '{}.pth'.format(args.classifier_name)
 
-            # if use cuda and n_gpu > 1
-            if next(classifier.parameters()).is_cuda and args.n_gpu > 1:
-                state = classifier.module.state_dict()
-            else:
-                state = classifier.state_dict()
+            # # if use cuda and n_gpu > 1
+            # if next(classifier.parameters()).is_cuda and args.n_gpu > 1:
+            #     state = classifier.module.state_dict()
+            # else:
+            #     state = classifier.state_dict()
+            state = classifier.state_dict()
 
             torch.save(state, save_name)
             logger.info("==> New optimal training loss & saving checkpoint ...")
@@ -112,8 +113,8 @@ def run(args: DictConfig) -> None:
 
     classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(device)
 
-    if device == 'cuda' and args.n_gpu > 1:
-        classifier = torch.nn.DataParallel(classifier, device_ids=list(range(args.n_gpu)))
+    # if device == 'cuda' and args.n_gpu > 1:
+    #     classifier = torch.nn.DataParallel(classifier, device_ids=list(range(args.n_gpu)))
 
     logger.info('Base classifier name: {}, # parameters: {}'.format(args.classifier_name, cal_parameters(classifier)))
 

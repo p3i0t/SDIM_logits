@@ -30,21 +30,22 @@ def get_model(name='resnet18', n_classes=10):
     return classifier
 
 
-def load_pretrained_model(hps):
+def load_pretrained_model(args):
     """ load pretrained base discriminative classifier."""
-    classifier = get_model(name=hps.classifier_name, n_classes=hps.n_classes).to(hps.device)
-    save_name = '{}.pth'.format(hps.classifier_name)
-    base_dir = 'logs/base/{}'.format(hps.problem)
+    n_classes = args.get(args.dataset).n_classes
+    classifier = get_model(name=args.classifier_name, n_classes=args.n_classes).to(args.device)
+    save_name = '{}.pth'.format(args.classifier_name)
+    base_dir = 'logs/base/{}'.format(args.dataset)
     classifier.load_state_dict(torch.load(os.path.join(base_dir, save_name)))
     return classifier
 
 
-def run_epoch(sdim, data_loader, hps, optimizer=None):
+def run_epoch(sdim, data_loader, args, optimizer=None):
     """
     Run one epoch.
     :param sdim: torch.nn.Module representing the sdim.
     :param data_loader: dataloader
-    :param hps:
+    :param args:
     :param optimizer: if None, then inference; if optimizer given, training and optimizing.
     :return: mean of loss, mean of accuracy of this epoch.
     """
@@ -60,7 +61,7 @@ def run_epoch(sdim, data_loader, hps, optimizer=None):
     acc_meter = AverageMeter('Acc')
 
     for batch_idx, (x, y) in enumerate(data_loader):
-        x, y = x.to(hps.device), y.to(hps.device)
+        x, y = x.to(args.device), y.to(args.device)
         loss, mi_loss, nll_loss, ll_margin = sdim.eval_losses(x, y)
         loss_meter.update(loss.item(), x.size(0))
 
@@ -80,226 +81,104 @@ def run_epoch(sdim, data_loader, hps, optimizer=None):
 
     return loss_meter.avg, MI_meter.avg, nll_meter.avg, margin_meter.avg, acc_meter.avg
   
-def train(sdim, optimizer, hps):
+def train(sdim, optimizer, args):
     sdim.disc_classifier.requires_grad = False
-    torch.manual_seed(hps.seed)
-    np.random.seed(hps.seed)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
-    dataset = get_dataset(data_name=hps.problem, train=True, crop_flip=True)
-    train_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_train, shuffle=True)
+    dataset = get_dataset(data_name=args.dataset, train=True, crop_flip=True)
+    train_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_train, shuffle=True)
 
-    dataset = get_dataset(data_name=hps.problem, train=False, crop_flip=False)
-    test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
+    dataset = get_dataset(data_name=args.dataset, train=False, crop_flip=False)
+    test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False)
 
-    # results_dict = dict({'train_loss': [], 'train_MI': [], 'train_nll': [], 'train_margin': [],
-    #                      'test_loss': [], 'test_MI': [], 'test_nll': [], 'test_margin': []})
+    results_dict = dict({'train_loss': [], 'train_MI': [], 'train_nll': [], 'train_margin': [], 'train_acc': [],
+                         'test_loss': [], 'test_MI': [], 'test_nll': [], 'test_margin': [], 'test_acc': []})
 
     # specify log dir 
-    writer = SummaryWriter('runs/sdim_train_{}_experiment'.format(hps.dataset))
+    writer = SummaryWriter('runs/sdim_train_{}_experiment'.format(args.dataset))
 
     min_loss = 1e3
-    for epoch in range(1, hps.epochs + 1):
+    for epoch in range(1, args.epochs + 1):
         # train epoch
-        train_loss, mi, nll, margin, train_acc = run_epoch(sdim, train_loader, hps, optimizer=optimizer)
-        logger.info('Epoch: {}, training loss: {:.4f}, mi: {:.4f}.'.format(epoch, train_loss, mi))
-        logger.info('nll: {:.4f}, margin: {:.4f}, acc: {:.4f}.'.format(nll, margin, train_acc))
-        # sdim.train()
-        # loss_meter = AverageMeter('loss')
-        # MI_meter = AverageMeter('MI')
-        # nll_meter = AverageMeter('NLL')
-        # margin_meter = AverageMeter('margin')
+        train_loss, train_mi, train_nll, train_margin, train_acc = run_epoch(sdim, train_loader, args, optimizer=optimizer)
+        logger.info('Epoch: {}'.format(epoch))
+        logger.info('training loss: {:.4f}, mi: {:.4f}, nll: {:.4f}, margin: {:.4f}, acc: {:.4f}.'.format(train_loss, train_mi, train_nll, train_margin, train_acc))
 
-        # for batch_id, (x, y) in enumerate(train_loader):
-        #     x = x.to(hps.device)
-        #     y = y.to(hps.device)
+        writer.add_scalar('train_loss', train_loss, epoch)
+        writer.add_scalar('train_mi', train_mi, epoch)
+        writer.add_scalar('train_nll', train_nll, epoch)
+        writer.add_scalar('train_margin', train_margin, epoch)
+        writer.add_scalar('train_acc', train_acc, epoch)
 
-        #     optimizer.zero_grad()
-
-        #     loss, mi_loss, nll_loss, ll_margin = sdim.eval_losses(x, y)
-        #     loss.backward()
-        #     optimizer.step()
-
-        #     loss_meter.update(loss.item(), x.size(0))
-        #     MI_meter.update(mi_loss.item(), x.size(0))
-        #     nll_meter.update(nll_loss.item(), x.size(0))
-        #     margin_meter.update(ll_margin.item(), x.size(0))
-
-        # Timer.update(time.time() - end)
-
-        # logger.info('Epoch: {}, loss:{:.4f}, MI:{:.4f}, NLL:{:.4f}, margin:{:.4f}'.format(
-        #     loss_meter.avg, MI_meter.avg, nll_meter.avg, margin_meter.avg))
-
-        writer.add_scalar('training_loss', train_loss, epoch)
-        writer.add_scalar('training_mi', mi, epoch)
-        writer.add_scalar('training_nll', nll, epoch)
-        writer.add_scalar('training_margin', margin, epoch)
-        writer.add_scalar('training_acc', train_acc, epoch)
-
-
-        # results_dict['train_loss'].append(loss_meter)
-        # results_dict['train_MI'].append(MI_meter)
-        # results_dict['train_nll'].append(nll_meter)
-        # results_dict['train_margin'].append(margin_meter)
+        # save results
+        results_dict['train_loss'].append(train_loss)
+        results_dict['train_MI'].append(train_mi)
+        results_dict['train_nll'].append(train_nll)
+        results_dict['train_margin'].append(train_margin)
+        results_dict['train_acc'].append(train_acc)
 
         # test epoch
-        test_loss, mi, nll, margin, test_acc = run_epoch(sdim, test_loader, hps)
-        logger.info('Testing loss: {:.4f}, mi: {:.4f}.'.format(test_loss, mi))
-        logger.info('nll: {:.4f}, margin: {:.4f}, acc: {:.4f}.'.format(nll, margin, test_acc))
+        test_loss, test_mi, test_nll, test_margin, test_acc = run_epoch(sdim, test_loader, args)
+        logger.info('testing loss: {:.4f}, mi: {:.4f}, nll: {:.4f}, margin: {:.4f}, acc: {:.4f}.'.format(test_loss, test_mi, test_nll, test_margin, test_acc))
 
-        writer.add_scalar('testing_loss', test_loss, epoch)
-        writer.add_scalar('testing_mi', mi, epoch)
-        writer.add_scalar('testing_nll', nll, epoch)
-        writer.add_scalar('testing_margin', margin, epoch)
-        writer.add_scalar('testing_acc', test_acc, epoch)
+        writer.add_scalar('test_loss', test_loss, epoch)
+        writer.add_scalar('test_mi', test_mi, epoch)
+        writer.add_scalar('test_nll', test_nll, epoch)
+        writer.add_scalar('test_margin', test_margin, epoch)
+        writer.add_scalar('test_acc', test_acc, epoch)
+
+        # save results
+        results_dict['test_loss'].append(test_loss)
+        results_dict['test_MI'].append(test_mi)
+        results_dict['test_nll'].append(test_nll)
+        results_dict['test_margin'].append(test_margin)
+        results_dict['test_acc'].append(test_acc)
 
         # checkpoint
         if train_loss < min_loss:
             min_loss = train_loss
             state = sdim.state_dict()
-            sdim_dir = 'logs/sdim/{}'.format(hps.problem)
+            sdim_dir = 'logs/sdim/{}'.format(args.dataset)
 
             if not os.path.exists(sdim_dir):
                 os.mkdir(sdim_dir)
 
-            save_name = 'SDIM_{}.pth'.format(hps.classifier_name)
+            save_name = 'SDIM_{}.pth'.format(args.classifier_name)
 
             checkpoint_path = os.path.join(sdim_dir, save_name)
             torch.save(state, checkpoint_path)
 
-        # # Evaluate accuracy on test set.
-        # sdim.eval()
-        # loss_meter = AverageMeter('loss')
-        # MI_meter = AverageMeter('MI')
-        # nll_meter = AverageMeter('NLL')
-        # margin_meter = AverageMeter('margin')
 
-        # acc_meter = AverageMeter('Acc')
-        # for batch_id, (x, y) in enumerate(test_loader):
-        #     x = x.to(hps.device)
-        #     y = y.to(hps.device)
+@hydra.main(config_path='configs/sdim_config.yaml')
+def run(args: DictConfig) -> None:
+    cuda_available = torch.cuda.is_available()
+    torch.manual_seed(args.seed)
 
-        #     with torch.no_grad():
-        #         preds = sdim(x).argmax(dim=1)
-        #     acc = (preds == y).float().mean()
-        #     acc_meter.update(acc.item(), x.size(0))
+    device = "cuda" if cuda_available and args.device == 'cuda' else "cpu"
 
-        #     with torch.no_grad():
-        #         loss, mi_loss, nll_loss, ll_margin = sdim.eval_losses(x, y)
-
-        #     loss_meter.update(loss.item(), x.size(0))
-        #     MI_meter.update(mi_loss.item(), x.size(0))
-        #     nll_meter.update(nll_loss.item(), x.size(0))
-        #     margin_meter.update(ll_margin.item(), x.size(0))
-
-        # print('Test accuracy: {:.3f}'.format(acc_meter.avg))
-
-        # results_dict['test_loss'].append(loss_meter)
-        # results_dict['test_MI'].append(MI_meter)
-        # results_dict['test_nll'].append(nll_meter)
-        # results_dict['test_margin'].append(margin_meter)
-
-def inference(sdim, hps):
-    sdim.eval()
-
-    torch.manual_seed(hps.seed)
-    np.random.seed(hps.seed)
-
-    sdim_dir = 'logs/sdim/{}'.format(hps.problem)
-    save_name = 'SDIM_{}.pth'.format(hps.classifier_name)
-
-    checkpoint_path = os.path.join(sdim_dir, save_name)
-
-    sdim.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage)['model_state'])
-
-    global_acc_list = []
-    for label_id in range(hps.n_classes):
-        dataset = get_dataset(data_name=hps.problem, train=False, label_id=label_id)
-        test_loader = DataLoader(dataset=dataset, batch_size=hps.n_batch_test, shuffle=False)
-
-        acc_meter = AverageMeter('Acc')
-        for batch_id, (x, y) in enumerate(test_loader):
-            x = x.to(hps.device)
-            y = y.to(hps.device)
-
-            preds = sdim(x).argmax(dim=1)
-            acc = (preds == y).float().mean()
-            acc_meter.update(acc.item(), x.size(0))
-
-        global_acc_list.append(acc_meter.avg)
-        print('Class label {}, Test accuracy: {:.4f}'.format(label_id, acc_meter.avg))
-    print('Test accuracy: {:.4f}'.format(np.mean(global_acc_list)))
-
-
-if __name__ == '__main__':
-    # This enables a ctr-C without triggering errors
-    import signal
-
-    signal.signal(signal.SIGINT, lambda x, y: sys.exit(0))
-
-    parser = argparse.ArgumentParser(description='PyTorch Implementation of SDIM_logits.')
-    parser.add_argument("--verbose", action='store_true', help="Verbose mode")
-    parser.add_argument("--inference", action="store_true",
-                        help="Used in inference mode")
-    parser.add_argument("--adv_training", action="store_true",
-                        help="Use pre-trained classifier with adversarial training")
-    parser.add_argument("--log_dir", type=str,
-                        default='./logs', help="Location to save logs")
-
-    # Dataset hyperparams:
-    parser.add_argument("--problem", type=str, default='cifar10',
-                        help="Problem cifar10 | svhn")
-    parser.add_argument("--n_classes", type=int,
-                        default=10, help="number of classes of dataset.")
-    parser.add_argument("--data_dir", type=str, default='data',
-                        help="Location of data")
-
-    # Optimization hyperparams:
-    parser.add_argument("--n_batch_train", type=int,
-                        default=128, help="Minibatch size")
-    parser.add_argument("--n_batch_test", type=int,
-                        default=200, help="Minibatch size")
-    parser.add_argument("--optimizer", type=str,
-                        default="adam", help="adam or adamax")
-    parser.add_argument("--lr", type=float, default=0.001,
-                        help="Base learning rate")
-    parser.add_argument("--epochs", type=int, default=20,
-                        help="Total number of training epochs")
-
-    # sdim hyperparams:
-    parser.add_argument("--mi_units", type=int,
-                        default=64, help="output size of 1x1 conv network for mutual information estimation.")
-    parser.add_argument("--rep_size", type=int,
-                        default=10, help="size of the global representation from encoder.")
-    parser.add_argument("--margin", type=float,
-                        default=5, help="likelihood margin.")
-    parser.add_argument("--classifier_name", type=str, default='resnet18',
-                        help="classifier name: resnet18, resnet34, resnet50")
-
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
-
-    # Ablation
-    parser.add_argument("--seed", type=int, default=1234, help="Random seed")
-    hps = parser.parse_args()  # So error if typo
-
-    use_cuda = not hps.no_cuda and torch.cuda.is_available()
-
-    torch.manual_seed(hps.seed)
-    hps.device = torch.device("cuda" if use_cuda else "cpu")
-
-    classifier = load_pretrained_model(hps).to(hps.device)
+    n_classes = args.get(args.dataset).n_classes
+    rep_size = args.get(args.dataset).rep_size
+    margin = args.get(args.dataset).margin
+    
+    classifier = load_pretrained_model(args)
 
     sdim = SDIM(disc_classifier=classifier,
-                n_classes=hps.n_classes,
-                rep_size=hps.rep_size,
-                mi_units=hps.mi_units,
-                margin=hps.margin).to(hps.device)
+                n_classes=n_classes,
+                rep_size=rep_size,
+                mi_units=args.mi_units,
+                margin=margin).to(args.device)
 
-    optimizer = Adam(sdim.parameters(), lr=hps.lr)
+    optimizer = Adam(sdim.parameters(), lr=args.lr)
 
-    logger.info('==>  # SDIM parameters: {}.'.format(cal_parameters(sdim)))
+    data_dir = hydra.utils.to_absolute_path(args.data_dir)
+    train_data = get_dataset(data_name=args.dataset, data_dir=data_dir, train=True, crop_flip=True)
+    test_data = get_dataset(data_name=args.dataset, data_dir=data_dir, train=False, crop_flip=False)
 
-    if hps.inference:
-        inference(sdim, hps)
-    else:
-        train(sdim, optimizer, hps)
+    train_loader = DataLoader(dataset=train_data, batch_size=args.n_batch_train, shuffle=True)
+    test_loader = DataLoader(dataset=test_data, batch_size=args.n_batch_test, shuffle=False)
+
+    train(classifier, train_loader, test_loader, args)
+
+if __name__ == '__main__':
+    run()

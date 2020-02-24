@@ -14,19 +14,23 @@ data_dir: data
 # model parameters
 classifier_name: resnet18  # base classifier
 mi_units: 64
-rep_size: 10
-margin: 3
 
 cifar10:
   n_classes: 10
+  rep_size: 10
+  margin: 5
 
 cifar100:
   n_classes: 100
+  rep_size: 64
+  margin: 1
 
 tiny_imagenet:
   n_classes: 200
+  rep_size: 64
+  margin: 1
 
-inference: False  # False for training, True for inference.
+# inference: False  # False for training, True for inference.
 
 # training parameters
 epochs: 50

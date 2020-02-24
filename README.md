@@ -24,9 +24,29 @@ python base_classifier_train.py dataset=tiny_imagenet classifier_name=resnet18
 ```
 Other available classifiers include ``resnet34, resnet50``. 
 
+If simply inference on the test set, add ``inference=True`` to the above commands.
+
 See ``configs/base_config.yaml`` for the full training hyperparameters. 
 
 ### Train SDIM generative classifiers
+
+Train SDIM-logit (ResNet18) on CIFAR10:
+
+```python
+python base_classifier_train.py dataset=cifar10 classifier_name=resnet18
+```
+
+Train SDIM-logit (ResNet18) on CIFAR100:
+
+```python
+python base_classifier_train.py dataset=cifar100 classifier_name=resnet18
+```
+
+Train SDIM-logit (ResNet18) on Tiny Imagenet:
+```python
+python base_classifier_train.py dataset=tiny_imagenet classifier_name=resnet18
+```
+Other available classifiers include ``resnet34, resnet50``. 
 
 See ``configs/sdim_config.yaml`` for the full training hyperparameters. 
 
