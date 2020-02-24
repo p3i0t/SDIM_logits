@@ -87,6 +87,7 @@ def train(sdim, optimizer, args):
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
+    data_dir = hydra.utils.to_absolute_path(args.data_dir)
     dataset = get_dataset(data_name=args.dataset, train=True, crop_flip=True)
     train_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_train, shuffle=True)
 
@@ -169,14 +170,7 @@ def run(args: DictConfig) -> None:
 
     optimizer = Adam(sdim.parameters(), lr=args.learning_rate)
 
-    data_dir = hydra.utils.to_absolute_path(args.data_dir)
-    train_data = get_dataset(data_name=args.dataset, data_dir=data_dir, train=True, crop_flip=True)
-    test_data = get_dataset(data_name=args.dataset, data_dir=data_dir, train=False, crop_flip=False)
-
-    train_loader = DataLoader(dataset=train_data, batch_size=args.n_batch_train, shuffle=True)
-    test_loader = DataLoader(dataset=test_data, batch_size=args.n_batch_test, shuffle=False)
-
-    train(classifier, train_loader, test_loader, args)
+    train(classifier, optimizer, args)
 
 if __name__ == '__main__':
     run()
