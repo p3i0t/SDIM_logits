@@ -139,15 +139,12 @@ def train(sdim, optimizer, args):
         if train_loss < min_loss:
             min_loss = train_loss
             state = sdim.state_dict()
-            sdim_dir = 'logs/sdim/{}'.format(args.dataset)
 
-            if not os.path.exists(sdim_dir):
-                os.mkdir(sdim_dir)
+            state_name = 'SDIM_{}.pth'.format(args.classifier_name)
+            torch.save(state, state_name)
 
-            save_name = 'SDIM_{}.pth'.format(args.classifier_name)
-
-            checkpoint_path = os.path.join(sdim_dir, save_name)
-            torch.save(state, checkpoint_path)
+    results_name = 'SDIM_{}_results.pth'.format(args.classifier_name)
+    torch.save(results, results_name)
 
 
 @hydra.main(config_path='configs/sdim_config.yaml')
