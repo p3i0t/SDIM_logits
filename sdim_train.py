@@ -170,7 +170,7 @@ def run(args: DictConfig) -> None:
 
     optimizer = Adam(sdim.parameters(), lr=args.learning_rate)
 
-    train(classifier, optimizer, args)
+    train(sdim, optimizer, args)
 
 if __name__ == '__main__':
     run()
