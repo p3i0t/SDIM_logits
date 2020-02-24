@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from torchvision.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 from models import resnet18, resnet34, resnet50
 from sdim import SDIM
@@ -39,12 +39,12 @@ def load_pretrained_model(hps):
     return classifier
 
 
-def run_epoch(sdim, data_loader, args, optimizer=None):
+def run_epoch(sdim, data_loader, hps, optimizer=None):
     """
     Run one epoch.
     :param sdim: torch.nn.Module representing the sdim.
     :param data_loader: dataloader
-    :param args:
+    :param hps:
     :param optimizer: if None, then inference; if optimizer given, training and optimizing.
     :return: mean of loss, mean of accuracy of this epoch.
     """
@@ -60,7 +60,7 @@ def run_epoch(sdim, data_loader, args, optimizer=None):
     acc_meter = AverageMeter('Acc')
 
     for batch_idx, (x, y) in enumerate(data_loader):
-        x, y = x.to(args.device), y.to(args.device)
+        x, y = x.to(hps.device), y.to(hps.device)
         loss, mi_loss, nll_loss, ll_margin = sdim.eval_losses(x, y)
         loss_meter.update(loss.item(), x.size(0))
 
@@ -95,12 +95,12 @@ def train(sdim, optimizer, hps):
     #                      'test_loss': [], 'test_MI': [], 'test_nll': [], 'test_margin': []})
 
     # specify log dir 
-    writer = SummaryWriter('runs/sdim_train_{}_experiment'.format(args.dataset))
+    writer = SummaryWriter('runs/sdim_train_{}_experiment'.format(hps.dataset))
 
     min_loss = 1e3
     for epoch in range(1, hps.epochs + 1):
         # train epoch
-        train_loss, mi, nll, margin, train_acc = run_epoch(sdim, train_loader, args, optimizer=optimizer)
+        train_loss, mi, nll, margin, train_acc = run_epoch(sdim, train_loader, hps, optimizer=optimizer)
         logger.info('Epoch: {}, training loss: {:.4f}, mi: {:.4f}.'.format(epoch, train_loss, mi))
         logger.info('nll: {:.4f}, margin: {:.4f}, acc: {:.4f}.'.format(nll, margin, train_acc))
         # sdim.train()
@@ -142,7 +142,7 @@ def train(sdim, optimizer, hps):
         # results_dict['train_margin'].append(margin_meter)
 
         # test epoch
-        test_loss, mi, nll, margin, test_acc = run_epoch(sdim, test_loader, args)
+        test_loss, mi, nll, margin, test_acc = run_epoch(sdim, test_loader, hps)
         logger.info('Testing loss: {:.4f}, mi: {:.4f}.'.format(test_loss, mi))
         logger.info('nll: {:.4f}, margin: {:.4f}, acc: {:.4f}.'.format(nll, margin, test_acc))
 
