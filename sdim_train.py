@@ -167,7 +167,7 @@ def run(args: DictConfig) -> None:
                 mi_units=args.mi_units,
                 margin=margin).to(args.device)
 
-    optimizer = Adam(sdim.parameters(), lr=args.lr)
+    optimizer = Adam(sdim.parameters(), lr=args.learning_rate)
 
     data_dir = hydra.utils.to_absolute_path(args.data_dir)
     train_data = get_dataset(data_name=args.dataset, data_dir=data_dir, train=True, crop_flip=True)
