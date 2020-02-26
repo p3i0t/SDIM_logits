@@ -154,7 +154,7 @@ class SDIM(torch.nn.Module):
         ll_margin = F.relu(self.margin - gap_ll).mean()
 
         # total loss
-        loss = mi_loss + nll_loss + ll_margin
+        loss = 0.6 * mi_loss + 0.2 * nll_loss + 0.2 * ll_margin
         return loss, mi_loss, nll_loss, ll_margin
 
     def forward(self, x):
