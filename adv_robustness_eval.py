@@ -233,7 +233,7 @@ def fgsm_attack(sdim, args):
             targeted=args.targeted
         )
         logger.info('epsilon = {:.4f}'.format(adversary.eps))
-        attack_run_rejection_policy(sdim, adversary, args)
+        adv_eval_with_rejection(sdim, adversary, args)
 
 
 def pgd_attack(sdim, args):
@@ -245,7 +245,7 @@ def pgd_attack(sdim, args):
             clip_max=1.0, targeted=args.targeted)
         logger.info('epsilon = {:.4f}'.format(adversary.eps))
         #attack_run(sdim, adversary, args)
-        attack_run_rejection_policy(sdim, adversary, args)
+        adv_eval_with_rejection(sdim, adversary, args)
 
 
 if __name__ == "__main__":
