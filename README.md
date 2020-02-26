@@ -2,6 +2,28 @@
 
 This is the code repo for the paper *Reject Illegal Inputs with Generative Classifiers Derived from Any Discriminative Classifier*, submission for ECCV-2020. Part of the code is borrowed from open-sourced code [Deep Infomax (DIM)](https://github.com/rdevon/DIM).
 
+## Repo Structure
+```
+sdim_logits
+    |
+    | -directories-
+    | configs： configuration files storing the hyperparameters for training and evaluations.
+    | data: directory for datasets.
+    | logs: directory for checkpoints and evaluation results.
+    | losses: various lower-bounds of MI as losses functions, borrowed from https://github.com/rdevon/DIM.
+    | models: definitions of resnets.
+    |
+    | -files-
+    | base_classifier_train.py: code for training base discriminative classifiers.
+    | sdim_train.py: code for training sdim-logit models on base models.
+    | sdim.py: definition of SDIM-logit framework.
+    | mi_networks.py: definitions of Mutual Information evaluation networks, borrowed from https://github.com/rdevon/DIM
+    | utils.py: some helper functions: get_dataset, AverageMeter, cal_parameters.
+    | adv_robustness_eval.py: code for adversarial robustness evaluations.
+    | corruption_robustness_eval.py: code for robustness evaluation on corrupted samples.
+    | ood_eval.py: code for evaluation on out-of-distribution samples. 
+
+```
 ## Usage
 
 ### Train base discriminative classifiers
