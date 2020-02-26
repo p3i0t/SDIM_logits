@@ -1,0 +1,41 @@
+hydra:
+  job_logging:
+    root:
+      handlers: [file, console]  # logging to file only.
+  run:
+    #dir: logs/${dataset}
+    dir: attack_logs/${attack}/${dataset}
+
+model_type: sdim
+dataset: cifar10
+
+data_dir: data
+
+# model parameters
+classifier_name: resnet18  # base classifier
+mi_units: 64
+
+cifar10:
+  n_classes: 10
+  rep_size: 10
+  margin: 5
+
+cifar100:
+  n_classes: 100
+  rep_size: 100 
+  margin: 1
+
+tiny_imagenet:
+  n_classes: 200
+  rep_size: 200
+  margin: 1
+
+attack: fgsm # pgd, cw
+targeted: False
+
+# training parameters
+n_batch_train: 128
+n_batch_test: 200
+seed: 1234
+n_gpu: 1
+device: cuda
