@@ -165,7 +165,7 @@ def adv_eval_with_rejection(sdim, adversary, args):
         print('1st & 2nd percentile thresholds: {:.3f}, {:.3f}'.format(thresh1, thresh2))
 
     # Evaluation
-    dataset = get_dataset(data_name=args.dataset, train=False)
+    dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=False)
     # args.n_batch_test = 1
     test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False)
 
