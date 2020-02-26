@@ -98,7 +98,8 @@ def train(sdim, optimizer, args):
                          'test_loss': [], 'test_MI': [], 'test_nll': [], 'test_margin': [], 'test_acc': []})
 
     # specify log dir 
-    writer = SummaryWriter('runs/sdim_train_{}_experiment'.format(args.dataset))
+    writer_path = hydra.utils.to_absolute_path('runs/sdim_train_{}_experiment'.format(args.dataset))
+    writer = SummaryWriter(writer_path)
 
     min_loss = 1e3
     for epoch in range(1, args.epochs + 1):

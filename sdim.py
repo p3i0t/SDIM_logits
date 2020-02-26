@@ -16,6 +16,8 @@ class ClassConditionalGaussianMixture(nn.Module):
         self.class_embed = nn.Embedding(n_classes, embed_size * 2)
 
     def log_lik(self, x, mean, log_sigma):
+        log_sigma_bound = math.log(0.02)  # avoid the log-lik to be infinitely large
+        log_sigma = torch.clamp(log_sigma, min=log_sigma_bound)
         tmp = math.log(2 * math.pi) + 2 * log_sigma + (x - mean).pow(2) * torch.exp(-2 * log_sigma)
         ll = -0.5 * tmp
         return ll
