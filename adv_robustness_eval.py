@@ -124,16 +124,8 @@ def run(args: DictConfig) -> None:
 #     return cln_acc, adv_acc
 
 
-def adv_eval_with_rejection(sdim, adversary, args):
-    """
-    An attack run with rejection policy.
-    :param sdim: Pytorch model.
-    :param adversary: Advertorch adversary.
-    :param args: hyperparameters
-    :return:
-    """
+def extract_thresholds(sdim, args):
     sdim.eval()
-
     # Get thresholds
     threshold_list1 = []
     threshold_list2 = []
@@ -164,6 +156,21 @@ def adv_eval_with_rejection(sdim, adversary, args):
         threshold_list2.append(thresh2)  # class mean as threshold
         print('1st & 2nd percentile thresholds: {:.3f}, {:.3f}'.format(thresh1, thresh2))
 
+    thresholds1 = torch.tensor(threshold_list1).to(args.device)
+    thresholds2 = torch.tensor(threshold_list2).to(args.device)
+    return thresholds1, thresholds2
+
+def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
+    """
+    An attack run with rejection policy.
+    :param sdim: Pytorch model.
+    :param adversary: Advertorch adversary.
+    :param args: hyperparameters
+    :return:
+    """
+    sdim.eval()
+
+    data_dir = hydra.utils.to_absolute_path(args.data_dir)
     # Evaluation
     dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=False)
     # args.n_batch_test = 1
@@ -173,9 +180,6 @@ def adv_eval_with_rejection(sdim, adversary, args):
     n_successful_adv = 0  # total number of successful adversarial examples generated
     n_rejected_adv1 = 0   # total number of successfully rejected (successful) adversarial examples, <= n_successful_adv
     n_rejected_adv2 = 0   # total number of successfully rejected (successful) adversarial examples, <= n_successful_adv
-
-    thresholds1 = torch.tensor(threshold_list1).to(args.device)
-    thresholds2 = torch.tensor(threshold_list2).to(args.device)
 
     l2_distortion_list = []
     for batch_id, (x, y) in enumerate(test_loader):
@@ -224,7 +228,8 @@ def adv_eval_with_rejection(sdim, adversary, args):
 
 
 def fgsm_attack(sdim, args):
-    eps_list = [0., 0.01, 0.02, 0.05, 0.1, 0.2]  # same as baseline DeepBayes
+    thresholds1, thresholds2 = extract_thresholds(sdim, args)
+    eps_list = [0.01, 0.02, 0.05, 0.1, 0.2]  # same as baseline DeepBayes
     for eps in eps_list:
         adversary = GradientSignAttack(
             sdim, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
@@ -233,11 +238,12 @@ def fgsm_attack(sdim, args):
             targeted=args.targeted
         )
         logger.info('epsilon = {:.4f}'.format(adversary.eps))
-        adv_eval_with_rejection(sdim, adversary, args)
+        adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2)
 
 
 def pgd_attack(sdim, args):
-    eps_list = [0., 0.01, 0.02, 0.05, 0.1, 0.2]
+    thresholds1, thresholds2 = extract_thresholds(sdim, args)
+    eps_list = [0.01, 0.02, 0.05, 0.1, 0.2]
     for eps in eps_list:
         adversary = LinfPGDAttack(
             sdim, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
@@ -245,7 +251,7 @@ def pgd_attack(sdim, args):
             clip_max=1.0, targeted=args.targeted)
         logger.info('epsilon = {:.4f}'.format(adversary.eps))
         #attack_run(sdim, adversary, args)
-        adv_eval_with_rejection(sdim, adversary, args)
+        adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2)
 
 
 if __name__ == "__main__":
