@@ -181,6 +181,7 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
     n_rejected_adv1 = 0   # total number of successfully rejected (successful) adversarial examples, <= n_successful_adv
     n_rejected_adv2 = 0   # total number of successfully rejected (successful) adversarial examples, <= n_successful_adv
 
+    n_classes = args.get(args.dataset).n_classes
     l2_distortion_list = []
     for batch_id, (x, y) in enumerate(test_loader):
         # Note that images are scaled to [0., 1.0]
@@ -193,16 +194,24 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
         x, y = x[correct_idx], y[correct_idx]  # Only evaluate on the correct classified samples by clean classifier.
         n_correct += correct_idx.sum().item()
 
-        adv_x = adversary.perturb(x, y)
+        target = ((y + np.random.randint(n_classes)) % n_classes).long()
+        adv_x = adversary.perturb(x, target)
         with torch.no_grad():
             output = sdim(adv_x)
 
+        pred = output.argmax(dim=1)
+        successful_idx = pred == target   # idx of successful adversarial examples.
+
+        adv_x = adv_x[successful_idx]
+        x = x[successful_idx]
+        y = y[successful_idx]
+        target = target[successful_idx]
+        
+        values, pred = output[successful_idx].max(dim=1)
+
+        # cal for successful ones.
         diff = adv_x - x
         l2_distortion = diff.norm(p=2, dim=-1).mean().item()  # mean l2 distortion
-
-        pred = output.argmax(dim=1)
-        successful_idx = pred != y   # idx of successful adversarial examples.
-        values, pred = output[successful_idx].max(dim=1)
 
         if batch_id == 0:
             base_dir = hydra.utils.to_absolute_path('imgs')
@@ -210,6 +219,7 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
             save_image(adv_x[:8], os.path.join(base_dir, "adv_{}_eps{}.png".format(args.attack, adversary.eps)), normalize=True)
             logger.info('correct labels {}'.format(y[:8]))
             logger.info('attacked labels {}'.format(pred[:8]))
+
         # confidence_idx = values >= thresholds[pred]
         reject_idx1 = values < thresholds1[pred]  # idx of successfully rejected samples.
         reject_idx2 = values < thresholds2[pred]  # idx of successfully rejected samples.
