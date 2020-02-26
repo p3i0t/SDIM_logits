@@ -31,7 +31,7 @@ tiny_imagenet:
   margin: 1
 
 attack: fgsm # pgd, cw
-targeted: False
+targeted: True  # targeted attack with randomly chosen labels.
 
 # training parameters
 n_batch_train: 128
