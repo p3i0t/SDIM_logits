@@ -200,14 +200,16 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
         diff = adv_x - x
         l2_distortion = diff.norm(p=2, dim=-1).mean().item()  # mean l2 distortion
 
+        pred = output.argmax(dim=1)
+        successful_idx = pred != y   # idx of successful adversarial examples.
+        values, pred = output[successful_idx].max(dim=1)
+
         if batch_id == 0:
             base_dir = hydra.utils.to_absolute_path('imgs')
             save_image(x[:8],os.path.join(base_dir, "normal_{}_eps{}.png".format(args.attack, adversary.eps)), normalize=True)
             save_image(adv_x[:8], os.path.join(base_dir, "adv_{}_eps{}.png".format(args.attack, adversary.eps)), normalize=True)
-
-        pred = output.argmax(dim=1)
-        successful_idx = pred != y   # idx of successful adversarial examples.
-        values, pred = output[successful_idx].max(dim=1)
+            logger.info('correct labels {}'.format(y[:8]))
+            logger.info('attacked labels {}'.format(pred[:8]))
         # confidence_idx = values >= thresholds[pred]
         reject_idx1 = values < thresholds1[pred]  # idx of successfully rejected samples.
         reject_idx2 = values < thresholds2[pred]  # idx of successfully rejected samples.
