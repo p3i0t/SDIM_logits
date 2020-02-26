@@ -146,7 +146,7 @@ def train(sdim, optimizer, args):
             torch.save(state, state_name)
 
     results_name = 'SDIM_{}_results.pth'.format(args.classifier_name)
-    torch.save(results, results_name)
+    torch.save(results_dict, results_name)
 
 
 @hydra.main(config_path='configs/sdim_config.yaml')
