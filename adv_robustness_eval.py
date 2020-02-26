@@ -1,6 +1,9 @@
 import argparse
 import sys
 import os
+import logging
+import hydra
+from omegaconf import DictConfig
 
 import numpy as np
 import torch
@@ -47,8 +50,9 @@ def run(args: DictConfig) -> None:
                 mi_units=args.mi_units,
                 margin=margin).to(args.device)
 
+    base_dir = hydra.utils.to_absolute_path('logs/sdim/{}'.format(args.dataset))
     save_name = 'SDIM_{}.pth'.format(args.classifier_name)
-    sdim.load_state_dict(torch.load(save_name, map_location=lambda storage, loc: storage))
+    sdim.load_state_dict(torch.load(os.path.join(base_dir, save_name), map_location=lambda storage, loc: storage))
 
     if args.attack == 'pgd':
         pgd_attack(sdim, args)
