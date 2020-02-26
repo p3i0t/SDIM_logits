@@ -139,7 +139,7 @@ def adv_eval_with_rejection(sdim, adversary, args):
     threshold_list2 = []
 
     data_dir = hydra.utils.to_absolute_path(args.data_dir)
-    for label_id in range(args.n_classes):
+    for label_id in range(args.get(args.dataset).n_classes):
         # No data augmentation(crop_flip=False) when getting in-distribution thresholds
         dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=True, label_id=label_id, crop_flip=False)
         in_test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False)
