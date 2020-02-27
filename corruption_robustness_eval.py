@@ -139,14 +139,14 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
 
                 values, pred = log_lik.max(dim=1)
 
-                if batch_id == 0:
-                    image_name = "sample_{}_severity{}.png".format(corruption_type, severity)
-                    idx = 0
-                    while idx < x.size(0):
-                        if target[idx] == pred[idx]:
-                            save_image(x[idx], image_name, normalize=True)
-                            samples_likelihood_dict[image_name] = values[idx]  # save sample's likelihood.
-                            break
+                # if batch_id == 0:
+                #     image_name = "sample_{}_severity{}.png".format(corruption_type, severity)
+                #     idx = 0
+                #     while idx < x.size(0):
+                #         if target[idx] == pred[idx]:
+                #             save_image(x[idx], image_name, normalize=True)
+                #             samples_likelihood_dict[image_name] = values[idx]  # save sample's likelihood.
+                #             break
 
                 def func(thresholds):
                     confidence_idx = values >= thresholds[pred]  # the predictions you have confidence in.
@@ -174,11 +174,6 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
                 n_reject0 += n_r
 
             n = len(test_loader.dataset)
-            acc = n_correct / n
-            false_rate = n_false / n
-            reject_rate = n_reject / n
-
-            acc_remain = acc / (acc + false_rate)
 
             key = '{}_{}'.format(corruption_type, severity + 1)
             results_dict0[key] = {'acc_left': n_correct0 / (n_correct0 + n_false0), 'rejection_rate': n_reject0 / n}
