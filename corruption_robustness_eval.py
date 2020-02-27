@@ -141,9 +141,12 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
 
                 if batch_id == 0:
                     image_name = "sample_{}_severity{}.png".format(corruption_type, severity)
-                    save_image(x[0], image_name, normalize=True)
-                    assert target[0] == pred[0]
-                    samples_likelihood_dict[image_name] = values[0]  # save sample's likelihood.
+                    idx = 0
+                    while idx < x.size(0):
+                        if target[idx] == pred[idx]:
+                            save_image(x[idx], image_name, normalize=True)
+                            samples_likelihood_dict[image_name] = values[idx]  # save sample's likelihood.
+                            break
 
                 def func(thresholds):
                     confidence_idx = values >= thresholds[pred]  # the predictions you have confidence in.
