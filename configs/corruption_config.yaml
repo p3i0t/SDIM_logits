@@ -1,0 +1,28 @@
+hydra:
+  job_logging:
+    root:
+      handlers: [file, console]  # logging to file only.
+  run:
+    #dir: logs/${dataset}
+    dir: attack_logs/corruption/${dataset}
+
+model_type: sdim
+dataset: cifar10
+
+data_dir: data
+
+# model parameters
+classifier_name: resnet18  # base classifier
+mi_units: 64
+
+cifar10:
+  n_classes: 10
+  rep_size: 10
+  margin: 5
+
+tiny_imagenet:
+  n_classes: 200
+  rep_size: 200
+  margin: 5
+
+
