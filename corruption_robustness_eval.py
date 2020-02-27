@@ -164,14 +164,14 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
                 n_reject0 += n_r
 
                 n_c, n_f, n_r = func(thresholds1)
-                n_correct0 += n_c 
-                n_false0 += n_f 
-                n_reject0 += n_r
+                n_correct1 += n_c 
+                n_false1 += n_f 
+                n_reject1 += n_r
 
                 n_c, n_f, n_r = func(thresholds2)
-                n_correct0 += n_c 
-                n_false0 += n_f 
-                n_reject0 += n_r
+                n_correct2 += n_c 
+                n_false2 += n_f 
+                n_reject2 += n_r
 
             n = len(test_loader.dataset)
 
