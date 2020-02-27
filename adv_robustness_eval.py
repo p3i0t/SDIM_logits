@@ -255,7 +255,7 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
     l2_distortion = np.mean(l2_distortion_list)
     logger.info('Test set, clean classification accuracy: {}/{}={:.4f}'.format(n_correct, n, n_correct / n))
     logger.info('success rate of adv examples generation: {}/{}={:.4f}'.format(n_successful_adv, n_correct, success_adv_rate))
-    logger.info('Mean L2 distortion of Adv Examples: {:.4f}'.format())
+    logger.info('Mean L2 distortion of Adv Examples: {:.4f}'.format(l2_distortion))
     logger.info('1st percentile, reject success rate: {}/{}={:.4f}'.format(n_rejected_adv1, n_successful_adv, reject_rate1))
     logger.info('2nd percentile, reject success rate: {}/{}={:.4f}'.format(n_rejected_adv2, n_successful_adv, reject_rate2))
 
