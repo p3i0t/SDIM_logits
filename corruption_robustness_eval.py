@@ -15,6 +15,7 @@ import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
+from torchvision.utils import save_image
 
 from models import resnet18, resnet34, resnet50
 from sdim import SDIM
