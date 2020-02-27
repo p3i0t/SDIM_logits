@@ -229,8 +229,9 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
 
         if batch_id == 0:
             base_dir = hydra.utils.to_absolute_path('imgs')
-            save_image(x[:8],os.path.join(base_dir, "normal_{}_eps{}.png".format(args.attack, adversary.eps)), normalize=True)
-            save_image(adv_x[:8], os.path.join(base_dir, "adv_{}_eps{}.png".format(args.attack, adversary.eps)), normalize=True)
+            if args.attack != 'cw':
+                save_image(x[:8],os.path.join(base_dir, "normal_{}_eps{}.png".format(args.attack, adversary.eps)), normalize=True)
+                save_image(adv_x[:8], os.path.join(base_dir, "adv_{}_eps{}.png".format(args.attack, adversary.eps)), normalize=True)
             logger.info('correct labels {}'.format(y[:8]))
             logger.info('attacked labels {}'.format(pred[:8]))
 
