@@ -308,7 +308,7 @@ def cw_attack(sdim, args):
     n_classes = args.get(args.dataset).n_classes
     from cw_attack import CW
     for c in c_list:
-        adversary = CW(sdim, n_classes, max_iterations=1000, c=c, clip_min=0., clip_max=1., learning_rate=0.01)
+        adversary = CW(sdim, n_classes, max_iterations=1000, c=c, clip_min=0., clip_max=1., learning_rate=0.01, targeted=args.targeted)
         logger.info('coefficient = {:.4f}'.format(c))
         l2_dist, rj_rate1, rj_rate2 = adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2)
         results_dict['reject_rate1'].append(rj_rate1)
