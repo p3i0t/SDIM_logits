@@ -115,7 +115,7 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
     results_dict1 = dict()
     results_dict2 = dict()
     samples_likelihood_dict = {}
-    for corruption_id, (corruption_type, data, labels) in enumerate(get_c_dataset(args.data_dir)):
+    for corruption_id, (corruption_type, data, labels) in enumerate(get_c_dataset(args.corruption_data_dir)):
         logger.info('==> Corruption type: {}'.format(corruption_type))
 
         for severity in range(5):

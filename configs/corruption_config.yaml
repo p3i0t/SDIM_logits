@@ -9,7 +9,8 @@ hydra:
 model_type: sdim
 dataset: cifar10
 
-data_dir: CIFAR-10-C
+data_dir: data
+corruption_data_dir: CIFAR-10-C
 
 # model parameters
 classifier_name: resnet18  # base classifier
