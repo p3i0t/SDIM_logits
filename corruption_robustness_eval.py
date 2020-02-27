@@ -144,7 +144,7 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
                     assert target[0] == pred[0]
                     samples_likelihood_dict[image_name] = values[0]  # save sample's likelihood.
 
-                def func(thresholds)
+                def func(thresholds):
                     confidence_idx = values >= thresholds[pred]  # the predictions you have confidence in.
                     reject_idx = values < thresholds[pred]       # the ones rejected.
 
