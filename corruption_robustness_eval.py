@@ -209,7 +209,7 @@ def run(args: DictConfig) -> None:
     save_name = 'SDIM_{}.pth'.format(args.classifier_name)
     sdim.load_state_dict(torch.load(os.path.join(base_dir, save_name), map_location=lambda storage, loc: storage))
 
-    threshold1, threshold2 = extract_thresholds(sdim, args)
+    thresholds1, thresholds2 = extract_thresholds(sdim, args)
     corruption_eval(sdim, args, thresholds1, thresholds2)
 
 
