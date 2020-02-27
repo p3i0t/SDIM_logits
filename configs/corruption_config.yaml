@@ -25,5 +25,8 @@ tiny_imagenet:
   rep_size: 200
   margin: 5
 
+# training parameters
+n_batch_train: 128
+n_batch_test: 200
 seed: 1234
 device: cuda
