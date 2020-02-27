@@ -58,6 +58,8 @@ def run(args: DictConfig) -> None:
         pgd_attack(sdim, args)
     elif args.attack == 'fgsm':
         fgsm_attack(sdim, args)
+    elif args.attack == 'cw':
+        cw_attack(sdim, args)
 
 
 # def attack_run(model, adversary, args):
@@ -195,7 +197,16 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
         n_correct += correct_idx.sum().item()
 
         target = ((y + np.random.randint(n_classes)) % n_classes).long()
-        adv_x = adversary.perturb(x, target)
+
+        if batch_id == 0:
+            logger.info('correct labels {}'.format(y[:8]))
+            logger.info('attacked labels {}'.format(target[:8]))
+
+        if args.attack == 'cw':
+            adv_x, l2_dist, adv_loss, loss = adversary.perturb(x, target)
+        else:
+            adv_x = adversary.perturb(x, target)
+
         with torch.no_grad():
             output = sdim(adv_x)
 
@@ -206,12 +217,15 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
         x = x[successful_idx]
         y = y[successful_idx]
         target = target[successful_idx]
-        
+
         values, pred = output[successful_idx].max(dim=1)
 
         # cal for successful ones.
-        diff = adv_x - x
-        l2_distortion = diff.norm(p=2, dim=-1).mean().item()  # mean l2 distortion
+        if args.attack == 'cw':
+            l2_distortion = l2_dist.mean().item()
+        else:
+            diff = adv_x - x
+            l2_distortion = diff.norm(p=2, dim=-1).mean().item()  # mean l2 distortion
 
         if batch_id == 0:
             base_dir = hydra.utils.to_absolute_path('imgs')
@@ -237,16 +251,22 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
     reject_rate1 = n_rejected_adv1 / n_successful_adv
     reject_rate2 = n_rejected_adv2 / n_successful_adv
     success_adv_rate = n_successful_adv / n_correct
+
+    l2_distortion = np.mean(l2_distortion_list)
     logger.info('Test set, clean classification accuracy: {}/{}={:.4f}'.format(n_correct, n, n_correct / n))
     logger.info('success rate of adv examples generation: {}/{}={:.4f}'.format(n_successful_adv, n_correct, success_adv_rate))
-    logger.info('Mean L2 distortion of Adv Examples: {:.4f}'.format(np.mean(l2_distortion_list)))
+    logger.info('Mean L2 distortion of Adv Examples: {:.4f}'.format())
     logger.info('1st percentile, reject success rate: {}/{}={:.4f}'.format(n_rejected_adv1, n_successful_adv, reject_rate1))
     logger.info('2nd percentile, reject success rate: {}/{}={:.4f}'.format(n_rejected_adv2, n_successful_adv, reject_rate2))
+
+    return l2_distortion, reject_rate1, reject_rate2
 
 
 def fgsm_attack(sdim, args):
     thresholds1, thresholds2 = extract_thresholds(sdim, args)
-    eps_list = [0.01, 0.02, 0.05, 0.1, 0.2]  # same as baseline DeepBayes
+    eps_list = [0.01, 0.02, 0.05, 0.1]  # same as baseline DeepBayes
+
+    results_dict = {'reject_rate1': [], 'reject_rate2': [], 'l2_distortion': []}
     for eps in eps_list:
         adversary = GradientSignAttack(
             sdim, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
@@ -255,12 +275,17 @@ def fgsm_attack(sdim, args):
             targeted=args.targeted
         )
         logger.info('epsilon = {:.4f}'.format(adversary.eps))
-        adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2)
+        l2_dist, rj_rate1, rj_rate2 = adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2)
+        results_dict['reject_rate1'].append(rj_rate1)
+        results_dict['reject_rate2'].append(rj_rate2)
+        results_dict['l2_distortion'].append(l2_dist)
+    torch.save(results_dict, '{}_results.pth'.format(args.attack))
 
 
 def pgd_attack(sdim, args):
     thresholds1, thresholds2 = extract_thresholds(sdim, args)
-    eps_list = [0.01, 0.02, 0.05, 0.1, 0.2]
+    results_dict = {'reject_rate1': [], 'reject_rate2': [], 'l2_distortion': []}
+    eps_list = [0.01, 0.02, 0.05, 0.1]
     for eps in eps_list:
         adversary = LinfPGDAttack(
             sdim, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
@@ -268,8 +293,28 @@ def pgd_attack(sdim, args):
             clip_max=1.0, targeted=args.targeted)
         logger.info('epsilon = {:.4f}'.format(adversary.eps))
         #attack_run(sdim, adversary, args)
-        adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2)
+        l2_dist, rj_rate1, rj_rate2 = adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2)
+        results_dict['reject_rate1'].append(rj_rate1)
+        results_dict['reject_rate2'].append(rj_rate2)
+        results_dict['l2_distortion'].append(l2_dist)
+    torch.save(results_dict, '{}_results.pth'.format(args.attack))
 
+
+def cw_attack(sdim, args):
+    thresholds1, thresholds2 = extract_thresholds(sdim, args)
+    c_list = [0.1, 1, 10, 100]
+
+    results_dict = {'reject_rate1': [], 'reject_rate2': [], 'l2_distortion': []}
+    n_classes = args.get(args.dataset).n_classes
+    from cw_attack import CW
+    for c in c_list:
+        attack = CW(sdim, n_classes, max_iterations=1000, c=c, clip_min=0., clip_max=1., learning_rate=0.01)
+        logger.info('coefficient = {:.4f}'.format(c))
+        l2_dist, rj_rate1, rj_rate2 = adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2)
+        results_dict['reject_rate1'].append(rj_rate1)
+        results_dict['reject_rate2'].append(rj_rate2)
+        results_dict['l2_distortion'].append(l2_dist)
+    torch.save(results_dict, '{}_results.pth'.format(args.attack))
 
 if __name__ == "__main__":
     run()

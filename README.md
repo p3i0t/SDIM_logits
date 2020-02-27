@@ -22,6 +22,7 @@ sdim_logits
     | adv_robustness_eval.py: code for adversarial robustness evaluations.
     | corruption_robustness_eval.py: code for robustness evaluation on corrupted samples.
     | ood_eval.py: code for evaluation on out-of-distribution samples. 
+    | cw_attack.py: implementation of CW attack with binary search.
 
 ```
 ## Usage
