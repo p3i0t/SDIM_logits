@@ -160,7 +160,7 @@ class SDIM(torch.nn.Module):
     def forward(self, x):
         logits = self.disc_classifier(x)
         rep = self.feature_transformer(logits)
-        log_lik = self.class_conditional(rep)/self.n_classes
+        log_lik = self.class_conditional(rep) / self.rep_size
         return log_lik
 
 
