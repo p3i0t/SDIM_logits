@@ -134,8 +134,8 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
     samples_likelihood_dict = {}
 
     for corruption_type in corruption_types:
-        for severity in range(5):
-            logger.info('==> Corruption type: {}, severity level: {}'.format(corruption_type, severity + 1))
+        for severity in range(1, 5 + 1):
+            logger.info('==> Corruption type: {}, severity level: {}'.format(corruption_type, severity))
             dataset = get_corruption_dataset(args, corruption_type, severity)
 
             test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False, num_workers=4)
