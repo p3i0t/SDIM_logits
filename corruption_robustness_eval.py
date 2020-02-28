@@ -8,9 +8,8 @@ from omegaconf import DictConfig
 import numpy as np
 
 import torch
-
 from torch.utils.data import DataLoader, Dataset
-import torchvision.transforms as transforms
+from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
 from models import resnet18, resnet34, resnet50
@@ -19,6 +18,10 @@ from utils import get_dataset
 
 
 logger = logging.getLogger(__name__)
+
+corruption_types = ['gaussian_noise', 'brightness', 'jpeg_compression', 'zoom_blur', 'gaussian_blur', 'defocus_blur',
+                    'saturate', 'impulse_noise', 'snow', 'glass_blur', 'frost', 'fog', 'contrast', 'elastic_transform',
+                    'pixelate', 'motion_blur', 'spatter', 'speckle_noise', 'shot_noise']
 
 
 def get_model(name='resnet18', n_classes=10):
@@ -31,7 +34,7 @@ def get_model(name='resnet18', n_classes=10):
     return classifier
 
 
-def get_c_dataset(dir='CIFAR-10-C'):
+def get_cifar_c_dataset(dir='CIFAR-10-C'):
     dir = hydra.utils.to_absolute_path(dir)  # change directory.
     from os import listdir
     files = [file for file in listdir(dir) if file != 'labels.npy' and file.endswith('.npy')]
@@ -43,6 +46,7 @@ def get_c_dataset(dir='CIFAR-10-C'):
 
 
 class CorruptionDataset(Dataset):
+    # for cifar10 and cifar100
     def __init__(self, x, y, transform=None):
         """
 
@@ -62,6 +66,25 @@ class CorruptionDataset(Dataset):
 
     def __len__(self):
         return self.x.shape[0]
+
+
+def get_corruption_dataset(args, corruption_type, severity):
+    corruption_data_dir = hydra.utils.to_absolute_path(args.get(args.dataset).corruption_data_dir)  # change directory.
+    transform = transforms.ToTensor()
+    if args.dataset == 'cifar10' or args.dataset == 'cifar100':
+        interval = 10000
+        y = np.load(os.path.join(corruption_data_dir, 'labels.npy'))
+        x = np.load(os.path.join(corruption_data_dir, '{}.npy'.format(corruption_type)))
+
+        x_severity = x[(severity - 1) * interval: severity * interval]
+        y_severity = y[(severity - 1) * interval: severity * interval]
+
+        dataset = CorruptionDataset(x_severity, y_severity, transform=transform)
+    elif args.dataset == 'tiny_imagenet':
+        data_dir = os.path.join(corruption_data_dir, '{}/{}'.format(corruption_type, severity))
+        dataset = datasets.ImageFolder(data_dir, transform=transform)
+
+    return dataset
 
 
 def extract_thresholds(sdim, args):
@@ -105,23 +128,16 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
     sdim.eval()
     thresholds0 = thresholds1 - 1e5   # set thresholds to be very low, so that no rejection happens.
 
-    transform = transforms.ToTensor()
-    interval = 10000
-
     results_dict0 = dict()
     results_dict1 = dict()
     results_dict2 = dict()
     samples_likelihood_dict = {}
 
-    corruption_data_dir = args.get(args.dataset).corruption_data_dir
-    for corruption_id, (corruption_type, data, labels) in enumerate(get_c_dataset(corruption_data_dir)):
-        logger.info('==> Corruption type: {}'.format(corruption_type))
-
+    for corruption_type in corruption_types:
         for severity in range(5):
-            x_severity = data[severity * interval: (severity + 1) * interval]
-            y_severity = labels[severity * interval: (severity + 1) * interval]
+            logger.info('==> Corruption type: {}, severity level: {}'.format(corruption_type, severity + 1))
+            dataset = get_corruption_dataset(args, corruption_type, severity)
 
-            dataset = CorruptionDataset(x_severity, y_severity, transform=transform)
             test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False, num_workers=4)
 
             n_correct0, n_false0, n_reject0 = 0, 0, 0
