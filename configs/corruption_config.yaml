@@ -9,16 +9,7 @@ hydra:
 model_type: sdim
 dataset: cifar10
 
-data_dir: data
-
-cifar10:
-  corruption_data_dir: CIFAR-10-C
-
-cifar100:
-  corruption_data_dir: CIFAR-100-C
-
-tiny_imagenet:
-  corruption_data_dir: Tiny-Imagenet-C
+data_dir: data  # normal data dir
 
 # model parameters
 classifier_name: resnet18  # base classifier
@@ -28,11 +19,19 @@ cifar10:
   n_classes: 10
   rep_size: 10
   margin: 5
+  corruption_data_dir: CIFAR-10-C
+
+cifar100:
+  n_classes: 100
+  rep_size: 100
+  margin: 5
+  corruption_data_dir: CIFAR-100-C
 
 tiny_imagenet:
   n_classes: 200
   rep_size: 200
   margin: 5
+  corruption_data_dir: Tiny-Imagenet-C
 
 # training parameters
 n_batch_train: 128
