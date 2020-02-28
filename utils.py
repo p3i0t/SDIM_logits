@@ -59,8 +59,8 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
         split = 'train' if train else 'test'
         dataset = datasets.SVHN(data_dir, split=split, download=False, transform=transform)
     elif data_name == 'tiny_imagenet':
-        split = 'train' if train else 'test'
-        transform = transform_3d  # no special transform
+        split = 'train' if train else 'val'
+        transform = transforms.Compose([transforms.RandomHorizontalFlip(), transforms.ToTensor()])
         import os
         dataset = datasets.ImageFolder(os.path.join(data_dir, split), transform=transform)
     else:
