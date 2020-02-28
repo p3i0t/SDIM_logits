@@ -1,7 +1,6 @@
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import numpy as np
-import os 
 
 
 class AverageMeter(object):
@@ -62,6 +61,7 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
     elif data_name == 'tiny_imagenet':
         split = 'train' if train else 'test'
         transform = transform_3d  # no special transform
+        import os
         dataset = datasets.ImageFolder(os.path.join('tiny_imagenet', split), transform=transform)
     else:
         print('dataset {} is not available'.format(data_name))

@@ -7,9 +7,6 @@ Xie, S., Girshick, R., Dollár, P., Tu, Z., & He, K. (2016).
 Aggregated residual transformations for deep neural networks. 
 arXiv preprint arXiv:1611.05431.
 """
-
-import argparse
-import os
 import numpy as np
 
 import hydra
@@ -109,9 +106,16 @@ def run(args: DictConfig) -> None:
     device = "cuda" if cuda_available and args.device == 'cuda' else "cpu"
 
     n_classes = args.get(args.dataset).n_classes
-    pretrained = True if args.dataset == 'tiny_imagenet' else False
-
-    classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(device)
+    if args.dataset == 'tiny_imagenet':
+        args.epochs = 20
+        args.learning_rate = 0.001
+        classifier = eval('torchvision.models.' + args.classifier_name)(pretrained=True)
+        classifier.avgpool = nn.AdaptiveAvgPool2d(1)
+        classifier.fc.out_features = 200
+        classifier.to(device)
+        
+    else:
+        classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(device)
 
     # if device == 'cuda' and args.n_gpu > 1:
     #     classifier = torch.nn.DataParallel(classifier, device_ids=list(range(args.n_gpu)))
@@ -136,5 +140,4 @@ def run(args: DictConfig) -> None:
 
 if __name__ == '__main__':
     run()
-
 
