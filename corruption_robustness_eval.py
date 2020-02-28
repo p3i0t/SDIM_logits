@@ -69,6 +69,7 @@ class CorruptionDataset(Dataset):
 
 
 def get_corruption_dataset(args, corruption_type, severity):
+    assert severity in set(range(1, 5 + 1)), 'severity {} not available, choose from 1-5'.format(severity)
     corruption_data_dir = hydra.utils.to_absolute_path(args.get(args.dataset).corruption_data_dir)  # change directory.
     transform = transforms.ToTensor()
     if args.dataset == 'cifar10' or args.dataset == 'cifar100':
@@ -192,14 +193,17 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
             key = '{}_{}'.format(corruption_type, severity + 1)
             acc_left0 = n_correct0 / (n_correct0 + n_false0)
             reject_rate0 = n_reject0 / n
+            logger.info('no rejection, acc_left: {:.4f}, rejection_rate: {:.4f}'.format(acc_left0, reject_rate0))
             results_dict0[key] = {'acc_left': acc_left0, 'rejection_rate': reject_rate0}
 
             acc_left1 = n_correct1 / (n_correct1 + n_false1)
             reject_rate1 = n_reject1 / n
+            logger.info('1st percentile, acc_left: {:.4f}, rejection_rate: {:.4f}'.format(acc_left1, reject_rate1))
             results_dict1[key] = {'acc_left': acc_left1, 'rejection_rate': reject_rate1}
 
             acc_left2 = n_correct2 / (n_correct2 + n_false2)
             reject_rate2 = n_reject2 / n
+            logger.info('2nd percentile, acc_left: {:.4f}, rejection_rate: {:.4f}'.format(acc_left2, reject_rate2))
             results_dict2[key] = {'acc_left': acc_left2, 'rejection_rate': reject_rate2}
 
     torch.save(results_dict0, '{}_corruption_percentile0_results.pth'.format(args.classifier_name))
