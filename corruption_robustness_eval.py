@@ -34,7 +34,7 @@ def get_model(name='resnet18', n_classes=10):
 def get_c_dataset(dir='CIFAR-10-C'):
     dir = hydra.utils.to_absolute_path(dir)  # change directory.
     from os import listdir
-    files = [file for file in listdir(dir) if file != 'labels.npy']
+    files = [file for file in listdir(dir) if file != 'labels.npy' and file.endswith('.npy')]
 
     y = np.load(os.path.join(dir, 'labels.npy'))
     for file in files:
