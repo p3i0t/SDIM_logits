@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+import torchvision
 # from torchvision.models import resnet18, resnet34, resnet50
 from models import resnet18, resnet34, resnet50
 from utils import cal_parameters, get_dataset, AverageMeter
