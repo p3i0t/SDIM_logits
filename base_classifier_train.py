@@ -114,6 +114,7 @@ def run(args: DictConfig) -> None:
         classifier.avgpool = nn.AdaptiveAvgPool2d(1)
         classifier.fc.out_features = 200
         classifier.to(device)
+        args.data_dir = 'tiny_imagenet'
         
     else:
         classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(device)
