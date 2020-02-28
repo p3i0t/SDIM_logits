@@ -1,25 +1,21 @@
 from __future__ import print_function
-import argparse
 import os
-import sys
-import time
 
 import logging
 import hydra
 from omegaconf import DictConfig
 
-
 import numpy as np
 
 import torch
-from torch.optim import Adam
+
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
 from models import resnet18, resnet34, resnet50
 from sdim import SDIM
-from utils import cal_parameters, get_dataset, AverageMeter
+from utils import get_dataset
 
 
 logger = logging.getLogger(__name__)
@@ -28,13 +24,14 @@ logger = logging.getLogger(__name__)
 def get_model(name='resnet18', n_classes=10):
     """ get proper model from torchvision models. """
     model_list = ['resnet18', 'resnet34', 'resnet50']
-    assert name in model_list, '{} not available, choose from {}'.format(name, model_list)
+    assert name in model_list,\
+        '{} not available, choose from {}'.format(name, model_list)
 
     classifier = eval(name)(n_classes=n_classes)
     return classifier
 
 
-def get_c_dataset(dir='data/CIFAR-10-C'):
+def get_c_dataset(dir='CIFAR-10-C'):
     dir = hydra.utils.to_absolute_path(dir)  # change directory.
     from os import listdir
     files = [file for file in listdir(dir) if file != 'labels.npy']
@@ -65,7 +62,6 @@ class CorruptionDataset(Dataset):
 
     def __len__(self):
         return self.x.shape[0]
-
 
 
 def extract_thresholds(sdim, args):
@@ -116,7 +112,9 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
     results_dict1 = dict()
     results_dict2 = dict()
     samples_likelihood_dict = {}
-    for corruption_id, (corruption_type, data, labels) in enumerate(get_c_dataset(args.corruption_data_dir)):
+
+    corruption_data_dir = args.get(args.dataset).corruption_data_dir
+    for corruption_id, (corruption_type, data, labels) in enumerate(get_c_dataset(corruption_data_dir)):
         logger.info('==> Corruption type: {}'.format(corruption_type))
 
         for severity in range(5):
@@ -176,9 +174,17 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
             n = len(test_loader.dataset)
 
             key = '{}_{}'.format(corruption_type, severity + 1)
-            results_dict0[key] = {'acc_left': n_correct0 / (n_correct0 + n_false0), 'rejection_rate': n_reject0 / n}
-            results_dict1[key] = {'acc_left': n_correct1 / (n_correct1 + n_false1), 'rejection_rate': n_reject1 / n}
-            results_dict2[key] = {'acc_left': n_correct2 / (n_correct2 + n_false2), 'rejection_rate': n_reject2 / n}
+            acc_left0 = n_correct0 / (n_correct0 + n_false0)
+            reject_rate0 = n_reject0 / n
+            results_dict0[key] = {'acc_left': acc_left0, 'rejection_rate': reject_rate0}
+
+            acc_left1 = n_correct1 / (n_correct1 + n_false1)
+            reject_rate1 = n_reject1 / n
+            results_dict1[key] = {'acc_left': acc_left1, 'rejection_rate': reject_rate1}
+
+            acc_left2 = n_correct2 / (n_correct2 + n_false2)
+            reject_rate2 = n_reject2 / n
+            results_dict2[key] = {'acc_left': acc_left2, 'rejection_rate': reject_rate2}
 
     torch.save(results_dict0, '{}_corruption_percentile0_results.pth'.format(args.classifier_name))
     torch.save(results_dict1, '{}_corruption_percentile1_results.pth'.format(args.classifier_name))

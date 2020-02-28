@@ -10,7 +10,15 @@ model_type: sdim
 dataset: cifar10
 
 data_dir: data
-corruption_data_dir: CIFAR-10-C
+
+cifar10:
+  corruption_data_dir: CIFAR-10-C
+
+cifar100:
+  corruption_data_dir: CIFAR-100-C
+
+tiny_imagenet:
+  corruption_data_dir: Tiny-Imagenet-C
 
 # model parameters
 classifier_name: resnet18  # base classifier
