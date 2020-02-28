@@ -157,18 +157,18 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
 
                 # Calculate
                 n_c, n_f, n_r = func(thresholds0)
-                n_correct0 += n_c 
-                n_false0 += n_f 
+                n_correct0 += n_c
+                n_false0 += n_f
                 n_reject0 += n_r
 
                 n_c, n_f, n_r = func(thresholds1)
-                n_correct1 += n_c 
-                n_false1 += n_f 
+                n_correct1 += n_c
+                n_false1 += n_f
                 n_reject1 += n_r
 
                 n_c, n_f, n_r = func(thresholds2)
-                n_correct2 += n_c 
-                n_false2 += n_f 
+                n_correct2 += n_c
+                n_false2 += n_f
                 n_reject2 += n_r
 
             n = len(test_loader.dataset)
@@ -201,7 +201,6 @@ def run(args: DictConfig) -> None:
     n_classes = args.get(args.dataset).n_classes
     rep_size = args.get(args.dataset).rep_size
     margin = args.get(args.dataset).margin
-    
     classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
 
     sdim = SDIM(disc_classifier=classifier,
@@ -220,5 +219,3 @@ def run(args: DictConfig) -> None:
 
 if __name__ == "__main__":
     run()
-
-
