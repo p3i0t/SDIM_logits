@@ -32,15 +32,28 @@ def get_model(name='resnet18', n_classes=10):
     return classifier
 
 
+def gen_model_for_tiny_imagenet(name='resnet18', n_classes=200):
+    classifier = eval('torchvision.models.' + name)(pretrained=False)
+    classifier.avgpool = nn.AdaptiveAvgPool2d(1)
+    classifier.fc.out_features = n_classes
+
+    class wrapper(nn.Module):
+        def __init__(self, classifier):
+            super().__init__()
+            self.m = classifier
+
+        def forward(self, x):
+            out = self.m(x)
+            return out[:, :n_classes]
+    return wrapper(classifier)
+
+
 def load_pretrained_model(args):
     """ load pretrained base discriminative classifier."""
     n_classes = args.get(args.dataset).n_classes
 
     if args.dataset == 'tiny_imagenet':
-        classifier = eval('torchvision.models.' + args.classifier_name)(pretrained=False)
-        classifier.avgpool = nn.AdaptiveAvgPool2d(1)
-        classifier.fc.out_features = 200
-        classifier = classifier.to(args.device)
+        classifier = gen_model_for_tiny_imagenet(name=args.classifier_name, n_classes=n_classes).to(args.device)
     else:
         classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
     save_name = '{}.pth'.format(args.classifier_name)
