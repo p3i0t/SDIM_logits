@@ -9,6 +9,8 @@ import logging
 
 import numpy as np
 import torch
+import torchvision
+import torch.nn as nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -33,7 +35,14 @@ def get_model(name='resnet18', n_classes=10):
 def load_pretrained_model(args):
     """ load pretrained base discriminative classifier."""
     n_classes = args.get(args.dataset).n_classes
-    classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
+
+    if args.dataset == 'tiny_imagenet':
+        classifier = eval('torchvision.models.' + args.classifier_name)(pretrained=False)
+        classifier.avgpool = nn.AdaptiveAvgPool2d(1)
+        classifier.fc.out_features = 200
+        classifier = classifier.to(args.device)
+    else:
+        classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
     save_name = '{}.pth'.format(args.classifier_name)
     base_dir = 'logs/base/{}'.format(args.dataset)
     path = hydra.utils.to_absolute_path(base_dir)
@@ -81,7 +90,8 @@ def run_epoch(sdim, data_loader, args, optimizer=None):
         acc_meter.update(acc.item(), x.size(0))
 
     return loss_meter.avg, MI_meter.avg, nll_meter.avg, margin_meter.avg, acc_meter.avg
-  
+
+
 def train(sdim, optimizer, args):
     sdim.disc_classifier.requires_grad = False
     torch.manual_seed(args.seed)
@@ -160,8 +170,10 @@ def run(args: DictConfig) -> None:
     n_classes = args.get(args.dataset).n_classes
     rep_size = args.get(args.dataset).rep_size
     margin = args.get(args.dataset).margin
-    
+
     classifier = load_pretrained_model(args)
+    if args.dataset == 'tiny_imagenet':
+        args.data_dir = 'tiny_imagenet'
 
     sdim = SDIM(disc_classifier=classifier,
                 n_classes=n_classes,
@@ -172,6 +184,7 @@ def run(args: DictConfig) -> None:
     optimizer = Adam(sdim.parameters(), lr=args.learning_rate)
 
     train(sdim, optimizer, args)
+
 
 if __name__ == '__main__':
     run()

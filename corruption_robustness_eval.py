@@ -190,7 +190,7 @@ def corruption_eval(sdim, args, thresholds1, thresholds2):
 
             n = len(test_loader.dataset)
 
-            key = '{}_{}'.format(corruption_type, severity + 1)
+            key = '{}_{}'.format(corruption_type, severity)
             acc_left0 = n_correct0 / (n_correct0 + n_false0)
             reject_rate0 = n_reject0 / n
             logger.info('no rejection, acc_left: {:.4f}, rejection_rate: {:.4f}'.format(acc_left0, reject_rate0))
