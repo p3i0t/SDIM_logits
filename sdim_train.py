@@ -32,22 +32,22 @@ def get_model(name='resnet18', n_classes=10):
     return classifier
 
 
-def gen_model_for_tiny_imagenet(name='resnet18', n_classes=200):
-    classifier = eval('torchvision.models.' + name)(pretrained=False)
+def get_model_for_tiny_imagenet(name='resnet18', n_classes=200):
+    classifier = eval('torchvision.models.' + name)(pretrained=True)
     classifier.avgpool = nn.AdaptiveAvgPool2d(1)
-    classifier.fc.out_features = n_classes
+    classifier.fc = nn.Linear(classifier.fc.in_features, n_classes)
     return classifier
 
 
-class wrapper(nn.Module):
-    def __init__(self, classifier):
-        super().__init__()
-        self.m = classifier
-        self.n_classes = self.m.fc.out_features
-
-    def forward(self, x):
-        out = self.m(x)
-        return out[:, :self.n_classes]
+# class wrapper(nn.Module):
+#     def __init__(self, classifier):
+#         super().__init__()
+#         self.m = classifier
+#         self.n_classes = self.m.fc.out_features
+#
+#     def forward(self, x):
+#         out = self.m(x)
+#         return out[:, :self.n_classes]
 
 
 def load_pretrained_model(args):
@@ -55,15 +55,13 @@ def load_pretrained_model(args):
     n_classes = args.get(args.dataset).n_classes
 
     if args.dataset == 'tiny_imagenet':
-        classifier = gen_model_for_tiny_imagenet(name=args.classifier_name, n_classes=n_classes).to(args.device)
+        classifier = get_model_for_tiny_imagenet(name=args.classifier_name, n_classes=n_classes).to(args.device)
     else:
         classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
     save_name = '{}.pth'.format(args.classifier_name)
     base_dir = 'logs/base/{}'.format(args.dataset)
     path = hydra.utils.to_absolute_path(base_dir)
     classifier.load_state_dict(torch.load(os.path.join(path, save_name)))
-    if args.dataset == 'tiny_imagenet':
-        classifier = wrapper(classifier)  # wrapper after loading model.
     return classifier
 
 

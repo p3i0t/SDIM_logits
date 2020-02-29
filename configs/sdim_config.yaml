@@ -23,7 +23,7 @@ cifar10:
 cifar100:
   n_classes: 100
   rep_size: 100 
-  margin: 1
+  margin: 2
 
 tiny_imagenet:
   n_classes: 200

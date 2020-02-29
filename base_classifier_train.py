@@ -26,6 +26,13 @@ from utils import cal_parameters, get_dataset, AverageMeter
 logger = logging.getLogger(__name__)
 
 
+def get_model_for_tiny_imagenet(name='resnet18', n_classes=200):
+    classifier = eval('torchvision.models.' + name)(pretrained=True)
+    classifier.avgpool = nn.AdaptiveAvgPool2d(1)
+    classifier.fc = nn.Linear(classifier.fc.in_features, n_classes)
+    return classifier
+
+
 def get_model(name='resnet18', n_classes=10):
     """ get proper model from torchvision models. """
     model_list = ['resnet18', 'resnet34', 'resnet50']
@@ -110,10 +117,7 @@ def run(args: DictConfig) -> None:
     if args.dataset == 'tiny_imagenet':
         args.epochs = 20
         args.learning_rate = 0.001
-        classifier = eval('torchvision.models.' + args.classifier_name)(pretrained=True)
-        classifier.avgpool = nn.AdaptiveAvgPool2d(1)
-        classifier.fc.out_features = 200
-        classifier.to(device)
+        classifier = get_model_for_tiny_imagenet(args.classifier_name, n_classes).to(device)
         args.data_dir = 'tiny_imagenet'
         
     else:

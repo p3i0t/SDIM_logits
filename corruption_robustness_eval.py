@@ -8,6 +8,7 @@ from omegaconf import DictConfig
 import numpy as np
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
@@ -31,6 +32,13 @@ def get_model(name='resnet18', n_classes=10):
         '{} not available, choose from {}'.format(name, model_list)
 
     classifier = eval(name)(n_classes=n_classes)
+    return classifier
+
+
+def get_model_for_tiny_imagenet(name='resnet18', n_classes=200):
+    classifier = eval('torchvision.models.' + name)(pretrained=True)
+    classifier.avgpool = nn.AdaptiveAvgPool2d(1)
+    classifier.fc = nn.Linear(classifier.fc.in_features, n_classes)
     return classifier
 
 
@@ -221,7 +229,11 @@ def run(args: DictConfig) -> None:
     n_classes = args.get(args.dataset).n_classes
     rep_size = args.get(args.dataset).rep_size
     margin = args.get(args.dataset).margin
-    classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
+
+    if args.dataset == 'tiny_imagenet':
+        classifier = get_model_for_tiny_imagenet(name=args.classifier_name, n_classes=n_classes).to(args.device)
+    else:
+        classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
 
     sdim = SDIM(disc_classifier=classifier,
                 n_classes=n_classes,
