@@ -15,6 +15,13 @@ data_dir: data
 classifier_name: resnet18  # base classifier
 mi_units: 64
 
+# ablation study
+ablation: False
+
+alpha: 0.6
+beta: 0.2
+gamma: 0.2
+
 cifar10:
   n_classes: 10
   rep_size: 10
@@ -30,7 +37,7 @@ tiny_imagenet:
   rep_size: 200
   margin: 1
 
-# inference: False  # False for training, True for inference.
+inference: False  # False for training, True for inference.
 
 # training parameters
 epochs: 20
