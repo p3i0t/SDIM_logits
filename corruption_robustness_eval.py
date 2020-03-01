@@ -143,13 +143,14 @@ def sample_cases(sdim, args):
             dataset = get_corruption_dataset(args, corruption_type, level)
             test_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False, num_workers=4)
             x, y = next(iter(test_loader))
+            x, y = next(iter(test_loader))
             x, y = x.to(args.device), y.long().to(args.device)
 
             with torch.no_grad():
                 log_lik = sdim(x)
             save_name = '{}_{}.png'.format(corruption_type, level)
             save_image(x, save_name, normalize=True)
-            sample_likelihood_dict[save_name] = log_lik[y].item()
+            sample_likelihood_dict[save_name] = log_lik[:, y].item()
 
     print(sample_likelihood_dict)
     torch.save(sample_likelihood_dict, 'sample_likelihood_dict.pt')
