@@ -289,7 +289,10 @@ def run(args: DictConfig) -> None:
                 n_classes=n_classes,
                 rep_size=rep_size,
                 mi_units=args.mi_units,
-                margin=margin).to(args.device)
+                margin=margin,
+                alpha=args.alpha,
+                beta=args.beta,
+                gamma=args.gamma).to(args.device)
 
     optimizer = Adam(sdim.parameters(), lr=args.learning_rate)
 
