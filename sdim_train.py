@@ -47,10 +47,11 @@ def load_pretrained_model(args):
         classifier = get_model_for_tiny_imagenet(name=args.classifier_name, n_classes=n_classes).to(args.device)
     else:
         classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
-    save_name = '{}.pth'.format(args.classifier_name)
-    base_dir = 'logs/base/{}'.format(args.dataset)
-    path = hydra.utils.to_absolute_path(base_dir)
-    classifier.load_state_dict(torch.load(os.path.join(path, save_name)))
+    if not args.infeernce:
+        save_name = '{}.pth'.format(args.classifier_name)
+        base_dir = 'logs/base/{}'.format(args.dataset)
+        path = hydra.utils.to_absolute_path(base_dir)
+        classifier.load_state_dict(torch.load(os.path.join(path, save_name)))
     return classifier
 
 
