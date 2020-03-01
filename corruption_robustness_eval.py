@@ -133,6 +133,27 @@ def extract_thresholds(sdim, args):
     return thresholds1, thresholds2
 
 
+def sample_cases(sdim, args):
+    sdim.eval()
+    candidate_types = ['gaussian_noise', 'brightness', 'glass_blur', 'shot_noise']
+    sample_likelihood_dict = {}
+    for corruption_type in candidate_types:
+        for level in range(1, 5 + 1):
+            logger.info('==> Corruption type: {}, severity level {}'.format(corruption_type, level))
+            dataset = get_corruption_dataset(args, corruption_type, level)
+            test_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False, num_workers=4)
+            x, y = next(iter(test_loader))
+            x, y = x.to(args.device), y.long().to(args.device)
+
+            with torch.no_grad():
+                log_lik = sdim(x)
+            save_name = '{}_{}.png'.format(corruption_type, level)
+            save_image(x, save_name, normalize=True)
+            sample_likelihood_dict[save_name] = log_lik[y].item()
+
+    torch.save(sample_likelihood_dict, 'sample_likelihood_dict.pt')
+
+
 def corruption_eval(sdim, args, thresholds1, thresholds2):
     sdim.eval()
     thresholds0 = thresholds1 - 1e5   # set thresholds to be very low, so that no rejection happens.
@@ -245,8 +266,11 @@ def run(args: DictConfig) -> None:
     save_name = 'SDIM_{}.pth'.format(args.classifier_name)
     sdim.load_state_dict(torch.load(os.path.join(base_dir, save_name), map_location=lambda storage, loc: storage))
 
-    thresholds1, thresholds2 = extract_thresholds(sdim, args)
-    corruption_eval(sdim, args, thresholds1, thresholds2)
+    if args.sample_likelihood:
+        sample_cases(sdim, args)
+    else:
+        thresholds1, thresholds2 = extract_thresholds(sdim, args)
+        corruption_eval(sdim, args, thresholds1, thresholds2)
 
 
 if __name__ == "__main__":
