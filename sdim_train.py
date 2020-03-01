@@ -293,6 +293,9 @@ def run(args: DictConfig) -> None:
     optimizer = Adam(sdim.parameters(), lr=args.learning_rate)
 
     if args.inference:
+        save_name = 'SDIM_{}.pth'.format(args.classifier_name)
+        sdim.load_state_dict(torch.load(save_name, map_location=lambda storage, loc: storage))
+
         thresholds1, thresholds2 = extract_thresholds(sdim, args)
         clean_eval(sdim, args, thresholds1, thresholds2)
     else:
