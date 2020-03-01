@@ -151,6 +151,7 @@ def sample_cases(sdim, args):
             save_image(x, save_name, normalize=True)
             sample_likelihood_dict[save_name] = log_lik[y].item()
 
+    print(sample_likelihood_dict)
     torch.save(sample_likelihood_dict, 'sample_likelihood_dict.pt')
 
 
