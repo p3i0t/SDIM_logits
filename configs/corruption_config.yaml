@@ -33,6 +33,8 @@ tiny_imagenet:
   margin: 5
   corruption_data_dir: Tiny-Imagenet-C
 
+sample_likelihood: False
+
 # training parameters
 n_batch_train: 128
 n_batch_test: 200
