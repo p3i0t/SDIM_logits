@@ -47,7 +47,7 @@ def load_pretrained_model(args):
         classifier = get_model_for_tiny_imagenet(name=args.classifier_name, n_classes=n_classes).to(args.device)
     else:
         classifier = get_model(name=args.classifier_name, n_classes=n_classes).to(args.device)
-    if not args.infernce:
+    if not args.inference:
         save_name = '{}.pth'.format(args.classifier_name)
         base_dir = 'logs/base/{}'.format(args.dataset)
         path = hydra.utils.to_absolute_path(base_dir)
