@@ -39,17 +39,6 @@ def get_model_for_tiny_imagenet(name='resnet18', n_classes=200):
     return classifier
 
 
-# class wrapper(nn.Module):
-#     def __init__(self, classifier):
-#         super().__init__()
-#         self.m = classifier
-#         self.n_classes = self.m.fc.out_features
-#
-#     def forward(self, x):
-#         out = self.m(x)
-#         return out[:, :self.n_classes]
-
-
 def load_pretrained_model(args):
     """ load pretrained base discriminative classifier."""
     n_classes = args.get(args.dataset).n_classes
@@ -63,6 +52,111 @@ def load_pretrained_model(args):
     path = hydra.utils.to_absolute_path(base_dir)
     classifier.load_state_dict(torch.load(os.path.join(path, save_name)))
     return classifier
+
+
+def extract_thresholds(sdim, args):
+    sdim.eval()
+    # Get thresholds
+    threshold_list1 = []
+    threshold_list2 = []
+
+    data_dir = hydra.utils.to_absolute_path(args.data_dir)
+    for label_id in range(args.get(args.dataset).n_classes):
+        # No data augmentation(crop_flip=False) when getting in-distribution thresholds
+        dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=True, label_id=label_id, crop_flip=False)
+        in_test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False)
+
+        logger.info('Extracting thresholds on {}, label_id {}'.format(args.dataset, label_id))
+        in_ll_list = []
+        for batch_id, (x, y) in enumerate(in_test_loader):
+            x = x.to(args.device)
+            y = y.to(args.device)
+            ll = sdim(x)
+
+            correct_idx = ll.argmax(dim=1) == y
+
+            ll_, y_ = ll[correct_idx], y[correct_idx]  # choose samples are classified correctly
+            in_ll_list += list(ll_[:, label_id].detach().cpu().numpy())
+
+        thresh_idx = int(0.01 * len(in_ll_list))
+        thresh1 = sorted(in_ll_list)[thresh_idx]
+        thresh_idx = int(0.02 * len(in_ll_list))
+        thresh2 = sorted(in_ll_list)[thresh_idx]
+        threshold_list1.append(thresh1)  # class mean as threshold
+        threshold_list2.append(thresh2)  # class mean as threshold
+        print('1st & 2nd percentile thresholds: {:.3f}, {:.3f}'.format(thresh1, thresh2))
+
+    thresholds1 = torch.tensor(threshold_list1).to(args.device)
+    thresholds2 = torch.tensor(threshold_list2).to(args.device)
+    return thresholds1, thresholds2
+
+
+def clean_eval(sdim, args, thresholds1, thresholds2):
+    sdim.eval()
+    thresholds0 = thresholds1 - 1e5   # set thresholds to be very low, so that no rejection happens.
+
+    data_dir = hydra.utils.to_absolute_path(args.data_dir)
+    dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=False, crop_flip=False)
+    test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False, num_workers=4)
+
+    n_correct0, n_false0, n_reject0 = 0, 0, 0
+    n_correct1, n_false1, n_reject1 = 0, 0, 0
+    n_correct2, n_false2, n_reject2 = 0, 0, 0
+
+    for batch_id, (x, target) in enumerate(test_loader):
+        # Note that images are scaled to [-1.0, 1.0]
+        x, target = x.to(args.device), target.long().to(args.device)
+
+        with torch.no_grad():
+            log_lik = sdim(x)
+
+        values, pred = log_lik.max(dim=1)
+
+        def func(thresholds):
+            confidence_idx = values >= thresholds[pred]  # the predictions you have confidence in.
+            reject_idx = values < thresholds[pred]       # the ones rejected.
+
+            n_correct = pred[confidence_idx].eq(target[confidence_idx]).sum().item()
+            n_false = (pred[confidence_idx] != target[confidence_idx]).sum().item()
+            n_reject = reject_idx.float().sum().item()
+            return n_correct, n_false, n_reject
+
+        # Calculate
+        n_c, n_f, n_r = func(thresholds0)
+        n_correct0 += n_c
+        n_false0 += n_f
+        n_reject0 += n_r
+
+        n_c, n_f, n_r = func(thresholds1)
+        n_correct1 += n_c
+        n_false1 += n_f
+        n_reject1 += n_r
+
+        n_c, n_f, n_r = func(thresholds2)
+        n_correct2 += n_c
+        n_false2 += n_f
+        n_reject2 += n_r
+
+    n = len(test_loader.dataset)
+
+    acc_left0 = n_correct0 / (n_correct0 + n_false0)
+    reject_rate0 = n_reject0 / n
+    logger.info('no rejection, acc_left: {:.4f}, rejection_rate: {:.4f}'.format(acc_left0, reject_rate0))
+    results_dict0 = {'acc_left': acc_left0, 'rejection_rate': reject_rate0}
+
+    acc_left1 = n_correct1 / (n_correct1 + n_false1)
+    reject_rate1 = n_reject1 / n
+    logger.info('1st percentile, acc_left: {:.4f}, rejection_rate: {:.4f}'.format(acc_left1, reject_rate1))
+    results_dict1 = {'acc_left': acc_left1, 'rejection_rate': reject_rate1}
+
+    acc_left2 = n_correct2 / (n_correct2 + n_false2)
+    reject_rate2 = n_reject2 / n
+    logger.info('2nd percentile, acc_left: {:.4f}, rejection_rate: {:.4f}'.format(acc_left2, reject_rate2))
+    results_dict2 = {'acc_left': acc_left2, 'rejection_rate': reject_rate2}
+
+    torch.save(results_dict0, '{}_clean_percentile0_results.pth'.format(args.classifier_name))
+    torch.save(results_dict1, '{}_clean_percentile1_results.pth'.format(args.classifier_name))
+    torch.save(results_dict2, '{}_clean_percentile2_results.pth'.format(args.classifier_name))
 
 
 def run_epoch(sdim, data_loader, args, optimizer=None):
@@ -198,7 +292,11 @@ def run(args: DictConfig) -> None:
 
     optimizer = Adam(sdim.parameters(), lr=args.learning_rate)
 
-    train(sdim, optimizer, args)
+    if args.inference:
+        thresholds1, thresholds2 = extract_thresholds(sdim, args)
+        clean_eval(sdim, args, thresholds1, thresholds2)
+    else:
+        train(sdim, optimizer, args)
 
 
 if __name__ == '__main__':
