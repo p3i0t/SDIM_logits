@@ -204,7 +204,8 @@ def sample_cases(sdim, args):
     sample_likelihood_dict['cw_10'] = f_forward(adv_cw_10, y, 'cw_10')
 
     print(sample_likelihood_dict)
-    torch.save(sample_likelihood_dict, 'sample_likelihood_dict.pt')
+    save_dir = hydra.utils.to_absolute_path('attack_logs/case_study')
+    torch.save(sample_likelihood_dict, os.path.join(save_dir, 'sample_likelihood_dict.pt'))
 
 
 def extract_thresholds(sdim, args):
