@@ -156,9 +156,9 @@ def sample_cases(sdim, args):
     eps_4 = 4 / 255
     eps_8 = 8 / 255
 
-    x_u_4 = (x + torch.FloatTensor(x.size()).uniform_(from_=-eps_4, to=eps_4)).clamp_(0., 1.).to(args.device)
+    x_u_4 = (x + torch.FloatTensor(x.size()).uniform_(-eps_4, eps_4)).clamp_(0., 1.).to(args.device)
     x_g_4 = (x + torch.randn(x.size()).clamp_(-eps_4, eps_4)).clamp_(0., 1.).to(args.device)
-    x_u_8 = (x + torch.FloatTensor(x.size()).uniform_(from_=-eps_8, to=eps_8)).clamp_(0., 1.).to(args.device)
+    x_u_8 = (x + torch.FloatTensor(x.size()).uniform_(-eps_8, eps_8)).clamp_(0., 1.).to(args.device)
     x_g_8 = (x + torch.randn(x.size()).clamp_(-eps_8, eps_8)).clamp_(0., 1.).to(args.device)
 
     sample_likelihood_dict['uniform_4'] = f_forward(x_u_4, y, 'uniform_4')
