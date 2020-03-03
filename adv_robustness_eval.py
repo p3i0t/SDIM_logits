@@ -16,6 +16,7 @@ from models import resnet18, resnet34, resnet50
 from sdim import SDIM
 
 from advertorch.attacks import LinfPGDAttack, GradientSignAttack
+from cw_attack import CW
 from utils import cal_parameters, get_dataset, AverageMeter
 
 
@@ -54,12 +55,15 @@ def run(args: DictConfig) -> None:
     save_name = 'SDIM_{}.pth'.format(args.classifier_name)
     sdim.load_state_dict(torch.load(os.path.join(base_dir, save_name), map_location=lambda storage, loc: storage))
 
-    if args.attack == 'pgd':
-        pgd_attack(sdim, args)
-    elif args.attack == 'fgsm':
-        fgsm_attack(sdim, args)
-    elif args.attack == 'cw':
-        cw_attack(sdim, args)
+    if args.sample_likelihood:
+        sample_cases(sdim, args)
+    else:
+        if args.attack == 'pgd':
+            pgd_attack(sdim, args)
+        elif args.attack == 'fgsm':
+            fgsm_attack(sdim, args)
+        elif args.attack == 'cw':
+            cw_attack(sdim, args)
 
 
 # def attack_run(model, adversary, args):
@@ -126,6 +130,83 @@ def run(args: DictConfig) -> None:
 #     return cln_acc, adv_acc
 
 
+def sample_cases(sdim, args):
+    sdim.eval()
+    n_classes = args.get(args.dataset).n_classes
+
+    sample_likelihood_dict = {}
+    # logger.info('==> Corruption type: {}, severity level {}'.format(corruption_type, level))
+    data_dir = hydra.utils.to_absolute_path(args.data_dir)
+    dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=False, crop_flip=False)
+
+    test_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
+    x, y = next(iter(test_loader))
+    x, y = x.to(args.device), y.long().to(args.device)
+
+    def f_forward(x_, y_, image_name):
+        with torch.no_grad():
+            log_lik = sdim(x_)
+        save_name = '{}.png'.format(image_name)
+        save_image(x_, save_name, normalize=True)
+        return log_lik[:, y_].item()
+
+    sample_likelihood_dict['original'] = f_forward(x, y, 'original')
+
+    eps_2 = 2 / 255
+    eps_4 = 4 / 255
+    eps_8 = 8 / 255
+
+    x_u_4 = (x + torch.FloatTensor(x.size()).uniform_(from_=-eps_4, to=eps_4)).clamp_(0., 1.).to(args.device)
+    x_g_4 = (x + torch.randn(x.size()).clamp_(-eps_4, eps_4)).clamp_(0., 1.).to(args.device)
+    x_u_8 = (x + torch.FloatTensor(x.size()).uniform_(from_=-eps_8, to=eps_8)).clamp_(0., 1.).to(args.device)
+    x_g_8 = (x + torch.randn(x.size()).clamp_(-eps_8, eps_8)).clamp_(0., 1.).to(args.device)
+
+    sample_likelihood_dict['uniform_4'] = f_forward(x_u_4, y, 'uniform_4')
+    sample_likelihood_dict['uniform_8'] = f_forward(x_u_8, y, 'uniform_8')
+    sample_likelihood_dict['gaussian_4'] = f_forward(x_g_4, y, 'gaussian_4')
+    sample_likelihood_dict['gaussian_8'] = f_forward(x_g_8, y, 'gaussian_8')
+
+    adversary = LinfPGDAttack(
+        sdim, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps_2,
+        nb_iter=40, eps_iter=0.01, rand_init=True, clip_min=-1.0,
+        clip_max=1.0, targeted=False)
+
+    adv_pgd_2 = adversary.perturb(x, y)
+
+    adversary = LinfPGDAttack(
+        sdim, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps_4,
+        nb_iter=40, eps_iter=0.01, rand_init=True, clip_min=-1.0,
+        clip_max=1.0, targeted=False)
+
+    adv_pgd_4 = adversary.perturb(x, y)
+
+    adversary = LinfPGDAttack(
+        sdim, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps_8,
+        nb_iter=40, eps_iter=0.01, rand_init=True, clip_min=-1.0,
+        clip_max=1.0, targeted=False)
+
+    adv_pgd_8 = adversary.perturb(x, y)
+
+    adversary = CW(sdim, n_classes, max_iterations=1000, c=1, clip_min=0., clip_max=1., learning_rate=0.01,
+                   targeted=False)
+
+    adv_cw_1, _, _, _ = adversary.perturb(x, y)
+
+    adversary = CW(sdim, n_classes, max_iterations=1000, c=10, clip_min=0., clip_max=1., learning_rate=0.01,
+                   targeted=False)
+
+    adv_cw_10, _, _, _ = adversary.perturb(x, y)
+
+    sample_likelihood_dict['pgd_2'] = f_forward(adv_pgd_2, y, 'pgd_2')
+    sample_likelihood_dict['pgd_4'] = f_forward(adv_pgd_4, y, 'pgd_4')
+    sample_likelihood_dict['pgd_8'] = f_forward(adv_pgd_8, y, 'pgd_8')
+    sample_likelihood_dict['cw_1'] = f_forward(adv_cw_1, y, 'cw_1')
+    sample_likelihood_dict['cw_10'] = f_forward(adv_cw_10, y, 'cw_10')
+
+    print(sample_likelihood_dict)
+    torch.save(sample_likelihood_dict, 'sample_likelihood_dict.pt')
+
+
 def extract_thresholds(sdim, args):
     sdim.eval()
     # Get thresholds
@@ -161,6 +242,7 @@ def extract_thresholds(sdim, args):
     thresholds1 = torch.tensor(threshold_list1).to(args.device)
     thresholds2 = torch.tensor(threshold_list2).to(args.device)
     return thresholds1, thresholds2
+
 
 def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
     """
@@ -307,7 +389,6 @@ def cw_attack(sdim, args):
 
     results_dict = {'reject_rate1': [], 'reject_rate2': [], 'l2_distortion': []}
     n_classes = args.get(args.dataset).n_classes
-    from cw_attack import CW
     for c in c_list:
         adversary = CW(sdim, n_classes, max_iterations=1000, c=c, clip_min=0., clip_max=1., learning_rate=0.01, targeted=args.targeted)
         logger.info('coefficient = {:.4f}'.format(c))
@@ -316,6 +397,7 @@ def cw_attack(sdim, args):
         results_dict['reject_rate2'].append(rj_rate2)
         results_dict['l2_distortion'].append(l2_dist)
     torch.save(results_dict, '{}_results.pth'.format(args.attack))
+
 
 if __name__ == "__main__":
     run()

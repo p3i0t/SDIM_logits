@@ -33,6 +33,7 @@ tiny_imagenet:
 attack: fgsm # pgd, cw
 targeted: True  # targeted attack with randomly chosen labels.
 
+sample_likelihood: False # for case study
 # training parameters
 n_batch_train: 128
 n_batch_test: 200
