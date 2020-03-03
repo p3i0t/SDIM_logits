@@ -112,6 +112,8 @@ def extract_thresholds(sdim, args):
         in_ll_list = []
         for batch_id, (x, y) in enumerate(in_test_loader):
             x = x.to(args.device)
+            if args.dataset == 'tiny_imagenet':
+                y = torch.LongTensor([int(ele) for ele in y])
             y = y.to(args.device)
             ll = sdim(x)
 

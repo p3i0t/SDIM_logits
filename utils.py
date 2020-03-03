@@ -72,7 +72,7 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
             # for cifar10
             targets = np.array(dataset.targets)
             idx = targets == label_id
-            dataset.targets = list(targets[idx])
+            dataset.targets = [int(ele) for ele in list(targets[idx])]
             dataset.data = dataset.data[idx]
         if data_name == 'tiny_imagenet':
             targets = np.array(dataset.targets)
