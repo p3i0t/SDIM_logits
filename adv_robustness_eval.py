@@ -292,7 +292,7 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
             if args.attack == 'cw':
                 save_image(adv_x[:3], 'cw_c{}.png'.format(adversary.c), normalize=True)
             elif args.attack == 'pgd':
-                save_image(adv_x[:3], 'pgd_eps{}.png'.format(adversary.c), normalize=True)
+                save_image(adv_x[:3], 'pgd_eps{}.png'.format(adversary.eps), normalize=True)
 
             # logger.info('correct labels {}'.format(y[:8]))
             # logger.info('attacked labels {}'.format(target[:8]))

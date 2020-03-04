@@ -37,7 +37,7 @@ def _inv_scale(x, clip_min, clip_max):
 
 class CW:
     def __init__(self, predict, n_classes, c=1, confidence=0, targeted=False, learning_rate=0.01,
-                 max_iterations=1000, clip_min=0., clip_max=1., norm=2):
+                 max_iterations=1000, clip_min=0., clip_max=1., norm='inf'):
         self.predict = predict
         self.n_classes = n_classes
         self.learning_rate = learning_rate
@@ -88,6 +88,9 @@ class CW:
             adv_loss = self._adv_loss_fn(pred, y_onehot)
             loss = distort_loss + self.c * adv_loss
             loss.sum().backward()
+            # early stop
+            if adv_loss.sum().item() < 1e-5:
+                break
             optimizer.step()
 
         return adv.data, distort_loss.data, adv_loss.data, loss.data
