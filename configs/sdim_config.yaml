@@ -25,7 +25,7 @@ gamma: 0.2
 cifar10:
   n_classes: 10
   rep_size: 10
-  margin: 5
+  margin: 10
 
 cifar100:
   n_classes: 100
