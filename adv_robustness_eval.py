@@ -205,6 +205,7 @@ def sample_cases(sdim, args):
 
     print(sample_likelihood_dict)
     save_dir = hydra.utils.to_absolute_path('attack_logs/case_study')
+    os.mkdir(save_dir)
     torch.save(sample_likelihood_dict, os.path.join(save_dir, 'sample_likelihood_dict.pt'))
 
 
@@ -281,15 +282,20 @@ def adv_eval_with_rejection(sdim, adversary, args, thresholds1, thresholds2):
 
         target = ((y + np.random.randint(n_classes)) % n_classes).long()
 
-        if batch_id == 0:
-            logger.info('correct labels {}'.format(y[:8]))
-            logger.info('attacked labels {}'.format(target[:8]))
-
         if args.attack == 'cw':
             adv_x, l2_dist, adv_loss, loss = adversary.perturb(x, target)
         else:
             adv_x = adversary.perturb(x, target)
 
+        if batch_id == 0:
+            save_image(x[:3], 'normal.png')
+            if args.attack == 'cw':
+                save_image(adv_x[:3], 'cw_c{}.png'.format(adversary.c), normalize=True)
+            elif args.attack == 'pgd':
+                save_image(adv_x[:3], 'pgd_eps{}.png'.format(adversary.c), normalize=True)
+
+            logger.info('correct labels {}'.format(y[:8]))
+            logger.info('attacked labels {}'.format(target[:8]))
         with torch.no_grad():
             output = sdim(adv_x)
 
