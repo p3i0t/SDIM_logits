@@ -205,7 +205,8 @@ def sample_cases(sdim, args):
 
     print(sample_likelihood_dict)
     save_dir = hydra.utils.to_absolute_path('attack_logs/case_study')
-    os.mkdir(save_dir)
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
     torch.save(sample_likelihood_dict, os.path.join(save_dir, 'sample_likelihood_dict.pt'))
 
 
