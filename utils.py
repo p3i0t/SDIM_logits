@@ -57,7 +57,7 @@ def get_dataset(data_name='cifar10', data_dir='data', train=True, label_id=None,
         dataset = datasets.CIFAR100(data_dir, train=train, download=True, transform=transform)
     elif data_name == 'svhn':
         split = 'train' if train else 'test'
-        dataset = datasets.SVHN(data_dir, split=split, download=False, transform=transform)
+        dataset = datasets.SVHN(data_dir, split=split, download=True, transform=transform)
     elif data_name == 'tiny_imagenet':
         split = 'train' if train else 'val'
         transform = transforms.Compose([transforms.RandomHorizontalFlip(), transforms.ToTensor()])
