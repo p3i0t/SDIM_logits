@@ -78,7 +78,7 @@ def ood_detection(sdim, args):
         dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=True, label_id=label_id, crop_flip=False)
         in_test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False)
 
-        logger.info('Inference on {}, label_id {}'.format(args.problem, label_id))
+        logger.info('Inference on {}, label_id {}'.format(args.dataset, label_id))
         in_ll_list = []
         for batch_id, (x, y) in enumerate(in_test_loader):
             x = x.to(args.device)
