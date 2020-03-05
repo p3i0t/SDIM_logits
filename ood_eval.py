@@ -65,13 +65,15 @@ def ood_detection(sdim, args):
     """
     sdim.eval()
 
-    if args.problem == 'cifar10':
-        out_problem = 'svhn'
+    # if args.problem == 'cifar10':
+    #     out_problem = 'svhn'
 
     data_dir = hydra.utils.to_absolute_path(args.data_dir)
 
     threshold_list = []
-    for label_id in range(args.n_classes):
+
+    n_classes = args.get(args.dataset).n_classes
+    for label_id in range(n_classes):
         # No data augmentation(crop_flip=False) when getting in-distribution thresholds
         dataset = get_dataset(data_name=args.dataset, data_dir=data_dir, train=True, label_id=label_id, crop_flip=False)
         in_test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False)
@@ -99,7 +101,7 @@ def ood_detection(sdim, args):
     dataset = get_dataset(data_name=args.ood_dataset, data_dir=data_dir, train=False)
     out_test_loader = DataLoader(dataset=dataset, batch_size=args.n_batch_test, shuffle=False)
 
-    reject_acc_dict = dict([(str(label_id), []) for label_id in range(args.n_classes)])
+    reject_acc_dict = dict([(str(label_id), []) for label_id in range(n_classes)])
 
     for batch_id, (x, _) in enumerate(out_test_loader):
         x = x.to(args.device)
@@ -109,7 +111,7 @@ def ood_detection(sdim, args):
             acc = (ll[:, label_id] < threshold_list[label_id]).float().mean().item()
             reject_acc_dict[str(label_id)].append(acc)
 
-    logger.info('In-distribution dataset: {}, Out-distribution dataset: {}'.format(args.problem, out_problem))
+    logger.info('In-distribution dataset: {}, Out-distribution dataset: {}'.format(args.dataset, args.ood_dataset))
     rate_list = []
     for label_id in range(args.n_classes):
         acc = np.mean(reject_acc_dict[str(label_id)])
@@ -117,7 +119,6 @@ def ood_detection(sdim, args):
         logger.info('Label id: {}, reject success rate: {:.4f}'.format(label_id, acc))
 
     logger.info('Mean reject success rate: {:.4f}'.format(np.mean(rate_list)))
-
 
 
 if __name__ == '__main__':
