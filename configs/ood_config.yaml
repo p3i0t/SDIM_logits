@@ -1,0 +1,42 @@
+hydra:
+  job_logging:
+    root:
+      handlers: [file, console]  # logging to file only.
+  run:
+    #dir: logs/${dataset}
+    dir: attack_logs/ood/${dataset}
+
+model_type: sdim
+dataset: cifar10
+ood_dataset: svhn
+
+data_dir: data
+
+# model parameters
+classifier_name: resnet18  # base classifier
+mi_units: 64
+
+alpha: 0.6
+beta: 0.2
+gamma: 0.2
+
+cifar10:
+  n_classes: 10
+  rep_size: 10
+  margin: 10
+
+cifar100:
+  n_classes: 100
+  rep_size: 100
+  margin: 2
+
+
+# training parameters
+epochs: 20
+n_batch_train: 128
+n_batch_test: 200
+optimizer: adam
+learning_rate: 0.001
+seed: 1234
+n_gpu: 1
+device: cuda
