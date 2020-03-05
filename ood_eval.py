@@ -106,14 +106,14 @@ def ood_detection(sdim, args):
     for batch_id, (x, _) in enumerate(out_test_loader):
         x = x.to(args.device)
         ll = sdim(x)
-        for label_id in range(args.n_classes):
+        for label_id in range(n_classes):
             # samples whose ll lower than threshold will be successfully rejected.
             acc = (ll[:, label_id] < threshold_list[label_id]).float().mean().item()
             reject_acc_dict[str(label_id)].append(acc)
 
     logger.info('In-distribution dataset: {}, Out-distribution dataset: {}'.format(args.dataset, args.ood_dataset))
     rate_list = []
-    for label_id in range(args.n_classes):
+    for label_id in range(n_classes):
         acc = np.mean(reject_acc_dict[str(label_id)])
         rate_list.append(acc)
         logger.info('Label id: {}, reject success rate: {:.4f}'.format(label_id, acc))
